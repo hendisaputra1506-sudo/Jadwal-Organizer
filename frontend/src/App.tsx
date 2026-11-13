@@ -1,0 +1,144 @@
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
+import { AppLayout } from './components/layout/AppLayout';
+
+// Pages
+import { LoginPage } from './pages/Login/LoginPage';
+import { WeeklySchedulePage } from './pages/WeeklySchedule/WeeklySchedulePage';
+import { CalendarPage } from './pages/Calendar/CalendarPage';
+import { AllEventsPage } from './pages/AllEvents/AllEventsPage';
+import { EventDetailPage } from './pages/EventDetail/EventDetailPage';
+import { EventFormPage } from './pages/EventForm/EventFormPage';
+import { TentativeEventsPage } from './pages/TentativeEvents/TentativeEventsPage';
+import { PrintSchedulePage } from './pages/PrintSchedule/PrintSchedulePage';
+import { ManageCategoriesPage } from './pages/Admin/ManageCategoriesPage';
+import { ManageLocationsPage } from './pages/Admin/ManageLocationsPage';
+import { LetterTemplatesPage } from './pages/Letters/LetterTemplatesPage';
+
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, isAdmin, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/weekly" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+export const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <ToastProvider>
+          <Routes>
+            {/* Public Login Route */}
+            <Route path="/login" element={<LoginPage />} />
+
+            {/* Protected Routes within AppLayout */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }
+            >
+              {/* Default redirect to Weekly Schedule */}
+              <Route index element={<Navigate to="/weekly" replace />} />
+
+              {/* Primary Schedule View */}
+              <Route path="weekly" element={<WeeklySchedulePage />} />
+
+              {/* Calendar Views */}
+              <Route path="calendar" element={<CalendarPage />} />
+
+              {/* Events Views */}
+              <Route path="events" element={<AllEventsPage />} />
+              <Route path="events/:id" element={<EventDetailPage />} />
+
+              {/* Tentative Schedules */}
+              <Route path="tentative" element={<TentativeEventsPage />} />
+
+              {/* Print View */}
+              <Route path="print" element={<PrintSchedulePage />} />
+
+              {/* Letter Templates & Bulk Print */}
+              <Route path="letters" element={<LetterTemplatesPage />} />
+
+              {/* Admin Only Routes */}
+              <Route
+                path="events/new"
+                element={
+                  <AdminRoute>
+                    <EventFormPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="events/:id/edit"
+                element={
+                  <AdminRoute>
+                    <EventFormPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="admin/categories"
+                element={
+                  <AdminRoute>
+                    <ManageCategoriesPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="admin/locations"
+                element={
+                  <AdminRoute>
+                    <ManageLocationsPage />
+                  </AdminRoute>
+                }
+              />
+            </Route>
+
+            {/* Catch-all redirect */}
+            <Route path="*" element={<Navigate to="/weekly" replace />} />
+          </Routes>
+        </ToastProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+};
+
+export default App;

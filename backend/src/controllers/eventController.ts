@@ -1,0 +1,364 @@
+import { Request, Response } from 'express';
+import { prisma } from '../config/db.js';
+import { AuthenticatedRequest } from '../middleware/auth.js';
+import * as eventService from '../services/eventService.js';
+import { checkScheduleConflicts } from '../services/conflictService.js';
+
+export async function getWeekly(req: Request, res: Response): Promise<void> {
+  try {
+    const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+
+    if (!startDate || !endDate) {
+      res.status(400).json({ success: false, message: 'Parameter startDate dan endDate wajib diisi.' });
+      return;
+    }
+
+    const events = await eventService.getWeeklyEvents(startDate, endDate);
+    res.json({ success: true, data: events });
+  } catch (error: any) {
+    console.error('Error on getWeekly:', error);
+    res.status(500).json({ success: false, message: 'Gagal mengambil jadwal mingguan.' });
+  }
+}
+
+export async function getMonthly(req: Request, res: Response): Promise<void> {
+  try {
+    const year = Number(req.query.year) || new Date().getFullYear();
+    const month = Number(req.query.month) || new Date().getMonth() + 1;
+
+    const data = await eventService.getMonthlyEvents(year, month);
+    res.json({ success: true, data });
+  } catch (error: any) {
+    console.error('Error on getMonthly:', error);
+    res.status(500).json({ success: false, message: 'Gagal mengambil kalender bulanan.' });
+  }
+}
+
+export async function getAll(req: Request, res: Response): Promise<void> {
+  try {
+    const filters: eventService.EventFilterQuery = {
+      search: req.query.search as string,
+      categoryId: req.query.categoryId as string,
+      status: req.query.status as string,
+      locationId: req.query.locationId as string,
+      datePrecision: req.query.datePrecision as string,
+      startDate: req.query.startDate as string,
+      endDate: req.query.endDate as string,
+      month: req.query.month as string,
+      isTentativeOnly: req.query.isTentativeOnly === 'true',
+    };
+
+    const events = await eventService.getAllEvents(filters);
+    res.json({ success: true, data: events });
+  } catch (error: any) {
+    console.error('Error on getAll:', error);
+    res.status(500).json({ success: false, message: 'Gagal mengambil daftar kegiatan.' });
+  }
+}
+
+export async function getTentative(req: Request, res: Response): Promise<void> {
+  try {
+    const events = await eventService.getTentativeEvents();
+    res.json({ success: true, data: events });
+  } catch (error: any) {
+    console.error('Error on getTentative:', error);
+    res.status(500).json({ success: false, message: 'Gagal mengambil kegiatan tentatif.' });
+  }
+}
+
+export async function getById(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+    const event = await eventService.getEventById(id);
+
+    if (!event) {
+      res.status(404).json({ success: false, message: 'Kegiatan tidak ditemukan.' });
+      return;
+    }
+
+    res.json({ success: true, data: event });
+  } catch (error: any) {
+    console.error('Error on getById:', error);
+    res.status(500).json({ success: false, message: 'Gagal mengambil detail kegiatan.' });
+  }
+}
+
+export async function create(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Tidak terautentikasi.' });
+      return;
+    }
+
+    const {
+      name,
+      categoryId,
+      status = 'DRAFT',
+      datePrecision = 'UNKNOWN',
+      estimatedMonth,
+      estimatedWeekLabel,
+      eventDate,
+      startTime,
+      endTime,
+      isAllDay = false,
+      locationId,
+      locationName,
+      description,
+      contactInfo,
+      requirementsNotes,
+      candidateDates = [],
+    } = req.body;
+
+    if (!name || !name.trim()) {
+      res.status(400).json({ success: false, message: 'Nama kegiatan wajib diisi.' });
+      return;
+    }
+
+    if (!categoryId) {
+      res.status(400).json({ success: false, message: 'Kategori kegiatan wajib dipilih.' });
+      return;
+    }
+
+    const locName = (locationName || req.body.location_name)?.trim() || null;
+
+    // Run conflict check
+    const conflictCheck = await checkScheduleConflicts({
+      locationId,
+      locationName: locName,
+      datePrecision,
+      eventDate,
+      startTime,
+      endTime,
+      isAllDay,
+      candidateDates,
+      estimatedMonth,
+    });
+
+    // Parse event_date
+    let parsedEventDate: Date | null = null;
+    if (eventDate && (datePrecision === 'EXACT' || datePrecision === 'CANDIDATES')) {
+      parsedEventDate = new Date(`${eventDate}T00:00:00.000Z`);
+    }
+
+    const newEvent = await prisma.event.create({
+      data: {
+        name: name.trim(),
+        category_id: categoryId,
+        status,
+        date_precision: datePrecision,
+        estimated_month: estimatedMonth || null,
+        estimated_week_label: estimatedWeekLabel || null,
+        event_date: parsedEventDate,
+        start_time: startTime || null,
+        end_time: endTime || null,
+        is_all_day: Boolean(isAllDay),
+        location_name: locName,
+        location_id: locationId || null,
+        description: description || null,
+        contact_info: contactInfo || null,
+        requirements_notes: requirementsNotes || null,
+        created_by_id: userId,
+        candidate_dates: {
+          create: candidateDates.map((cDate: string) => ({
+            candidate_date: new Date(`${cDate}T00:00:00.000Z`),
+          })),
+        },
+      },
+      include: {
+        category: true,
+        location: true,
+        candidate_dates: true,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Kegiatan berhasil disimpan.',
+      data: newEvent,
+      conflictWarning: conflictCheck.hasConflict ? conflictCheck : null,
+    });
+  } catch (error: any) {
+    console.error('Error on create event:', error);
+    res.status(500).json({ success: false, message: 'Gagal membuat kegiatan baru.' });
+  }
+}
+
+export async function update(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+
+    const {
+      name,
+      categoryId,
+      status,
+      datePrecision,
+      estimatedMonth,
+      estimatedWeekLabel,
+      eventDate,
+      startTime,
+      endTime,
+      isAllDay,
+      locationId,
+      locationName,
+      description,
+      contactInfo,
+      requirementsNotes,
+      candidateDates,
+    } = req.body;
+
+    const existing = await prisma.event.findUnique({
+      where: { id },
+      include: { candidate_dates: true },
+    });
+
+    if (!existing || existing.is_deleted) {
+      res.status(404).json({ success: false, message: 'Kegiatan tidak ditemukan.' });
+      return;
+    }
+
+    const finalLocationName = locationName !== undefined
+      ? (locationName?.trim() || null)
+      : req.body.location_name !== undefined
+      ? (req.body.location_name?.trim() || null)
+      : existing.location_name;
+
+    // Run conflict check
+    const conflictCheck = await checkScheduleConflicts({
+      eventIdToExclude: id,
+      locationId: locationId !== undefined ? locationId : existing.location_id,
+      locationName: finalLocationName,
+      datePrecision: datePrecision ?? existing.date_precision,
+      eventDate: eventDate !== undefined ? eventDate : existing.event_date,
+      startTime: startTime !== undefined ? startTime : existing.start_time,
+      endTime: endTime !== undefined ? endTime : existing.end_time,
+      isAllDay: isAllDay !== undefined ? Boolean(isAllDay) : existing.is_all_day,
+      candidateDates: candidateDates || existing.candidate_dates.map((c) => c.candidate_date),
+      estimatedMonth: estimatedMonth !== undefined ? estimatedMonth : existing.estimated_month,
+    });
+
+    let parsedEventDate: Date | null = null;
+    if (eventDate) {
+      parsedEventDate = new Date(`${eventDate}T00:00:00.000Z`);
+    } else if (eventDate === null) {
+      parsedEventDate = null;
+    } else {
+      parsedEventDate = existing.event_date;
+    }
+
+    // Handle candidate dates update
+    if (Array.isArray(candidateDates)) {
+      await prisma.eventCandidateDate.deleteMany({
+        where: { event_id: id },
+      });
+      if (candidateDates.length > 0) {
+        await prisma.eventCandidateDate.createMany({
+          data: candidateDates.map((cDate: string) => ({
+            event_id: id,
+            candidate_date: new Date(`${cDate}T00:00:00.000Z`),
+          })),
+        });
+      }
+    }
+
+    const updated = await prisma.event.update({
+      where: { id },
+      data: {
+        name: name !== undefined ? name.trim() : undefined,
+        category_id: categoryId || undefined,
+        status: status || undefined,
+        date_precision: datePrecision || undefined,
+        estimated_month: estimatedMonth !== undefined ? estimatedMonth : undefined,
+        estimated_week_label: estimatedWeekLabel !== undefined ? estimatedWeekLabel : undefined,
+        event_date: parsedEventDate,
+        start_time: startTime !== undefined ? startTime : undefined,
+        end_time: endTime !== undefined ? endTime : undefined,
+        is_all_day: isAllDay !== undefined ? Boolean(isAllDay) : undefined,
+        location_name: finalLocationName,
+        location_id: locationId !== undefined ? locationId : undefined,
+        description: description !== undefined ? description : undefined,
+        contact_info: contactInfo !== undefined ? contactInfo : undefined,
+        requirements_notes: requirementsNotes !== undefined ? requirementsNotes : undefined,
+        updated_by_id: userId,
+      },
+      include: {
+        category: true,
+        location: true,
+        candidate_dates: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Perubahan kegiatan berhasil disimpan.',
+      data: updated,
+      conflictWarning: conflictCheck.hasConflict ? conflictCheck : null,
+    });
+  } catch (error: any) {
+    console.error('Error on update event:', error);
+    res.status(500).json({ success: false, message: 'Gagal memperbarui kegiatan.' });
+  }
+}
+
+export async function remove(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.event.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      res.status(404).json({ success: false, message: 'Kegiatan tidak ditemukan.' });
+      return;
+    }
+
+    // Soft delete
+    await prisma.event.update({
+      where: { id },
+      data: { is_deleted: true },
+    });
+
+    res.json({
+      success: true,
+      message: 'Kegiatan berhasil dihapus.',
+    });
+  } catch (error: any) {
+    console.error('Error on remove event:', error);
+    res.status(500).json({ success: false, message: 'Gagal menghapus kegiatan.' });
+  }
+}
+
+export async function cancel(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+
+    const existing = await prisma.event.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      res.status(404).json({ success: false, message: 'Kegiatan tidak ditemukan.' });
+      return;
+    }
+
+    const updated = await prisma.event.update({
+      where: { id },
+      data: {
+        status: 'CANCELLED',
+        updated_by_id: userId,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Kegiatan berhasil ditandai sebagai Dibatalkan.',
+      data: updated,
+    });
+  } catch (error: any) {
+    console.error('Error cancelling event:', error);
+    res.status(500).json({ success: false, message: 'Gagal membatalkan kegiatan.' });
+  }
+}

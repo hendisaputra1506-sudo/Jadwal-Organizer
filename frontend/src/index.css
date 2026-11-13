@@ -1,0 +1,177 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-main: #F4F7FB;
+    --clay-surface: #FFFFFF;
+  }
+
+  body {
+    background-color: var(--bg-main);
+    color: #0F172A;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Soft Modern Blue Gradients */
+@layer components {
+  .utd-brand-bar {
+    height: 3.5px;
+    background: linear-gradient(90deg, #93C5FD 0%, #3B82F6 50%, #60A5FA 100%);
+  }
+
+  .utd-navy-gradient {
+    background: linear-gradient(180deg, #0F1F38 0%, #152B4E 50%, #1C3660 100%);
+  }
+
+  .clay-surface {
+    background: #FFFFFF;
+    box-shadow: 6px 6px 16px rgba(163, 177, 198, 0.35), -6px -6px 16px rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 18px;
+  }
+
+  .clay-card {
+    background: #FFFFFF;
+    box-shadow: 8px 8px 18px rgba(163, 177, 198, 0.32), -8px -8px 18px rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 20px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .clay-card-interactive:hover {
+    box-shadow: 10px 10px 22px rgba(163, 177, 198, 0.42), -10px -10px 22px rgba(255, 255, 255, 0.95);
+    transform: translateY(-2px);
+  }
+
+  .clay-inset {
+    background: #F8FAFC;
+    box-shadow: inset 3px 3px 6px rgba(163, 177, 198, 0.35), inset -3px -3px 6px rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(226, 232, 240, 0.7);
+    border-radius: 14px;
+  }
+
+  .clay-button {
+    box-shadow: 4px 4px 10px rgba(163, 177, 198, 0.4), -4px -4px 10px rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 14px;
+    transition: all 0.15s ease-in-out;
+  }
+
+  .clay-button:hover:not(:disabled) {
+    box-shadow: 6px 6px 14px rgba(163, 177, 198, 0.48), -6px -6px 14px rgba(255, 255, 255, 0.95);
+    transform: translateY(-1px);
+  }
+
+  .clay-button:active:not(:disabled) {
+    box-shadow: inset 3px 3px 6px rgba(163, 177, 198, 0.4), inset -3px -3px 6px rgba(255, 255, 255, 0.8);
+    transform: translateY(1px);
+  }
+
+  /* Hide scrollbar for clean horizontal tab/pill strips */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Dedicated Print Styles for A4 Landscape */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm 15mm;
+  }
+
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    font-size: 11pt;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* Reset all claymorphism shadows & backgrounds during print */
+  .clay-card, .clay-surface, .clay-inset, .clay-button {
+    box-shadow: none !important;
+    border: 1px solid #CBD5E1 !important;
+    background: #FFFFFF !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  /* Schedule table default print styling */
+  table.schedule-print-table th, table.schedule-print-table td {
+    border: 1px solid #94A3B8 !important;
+    padding: 6px 10px !important;
+  }
+}
+
+/* Official Letter Specific Styles (Times New Roman) */
+.letter-sheet,
+.letter-sheet * {
+  font-family: 'Times New Roman', Times, 'Liberation Serif', serif !important;
+}
+
+@media print {
+  @page {
+    size: auto;
+    margin: 0;
+  }
+
+  .letter-sheet {
+    page-break-after: always !important;
+    break-after: page !important;
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .letter-body-content {
+    padding: 6mm 22mm 20mm 22mm !important;
+  }
+
+  .letter-sheet table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .letter-sheet th,
+  .letter-sheet td {
+    border: none !important;
+    padding: 2px 2px !important;
+  }
+}

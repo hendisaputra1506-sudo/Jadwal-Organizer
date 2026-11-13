@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum EventStatus {
+  DRAFT
+  WAITING_CONFIRMATION
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum DatePrecision {
+  UNKNOWN
+  MONTH
+  WEEK
+  CANDIDATES
+  EXACT
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String
+  username       String    @unique
+  password_hash  String
+  role           UserRole  @default(USER)
+  created_at     DateTime  @default(now())
+  events_created  Event[]        @relation("CreatedBy")
+  events_updated  Event[]        @relation("UpdatedBy")
+  letters_created LetterRecord[] @relation("LetterCreator")
+
+  @@map("users")
+}
+
+model Category {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  color      String   // Hex color code, e.g. #2563EB
+  icon       String?  // Optional icon name
+  created_at DateTime @default(now())
+  events     Event[]
+
+  @@map("categories")
+}
+
+model Location {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  created_at DateTime @default(now())
+  events     Event[]
+
+  @@map("locations")
+}
+
+model Event {
+  id                   String               @id @default(cuid())
+  name                 String
+  category_id          String
+  category             Category             @relation(fields: [category_id], references: [id])
+  status               EventStatus          @default(DRAFT)
+  date_precision       DatePrecision        @default(UNKNOWN)
+  estimated_month      String?              // e.g. "2026-10"
+  estimated_week_label String?              // e.g. "Minggu ke-2 Oktober 2026"
+  event_date           DateTime?            @db.Date
+  start_time           String?              // HH:mm format, e.g. "09:00"
+  end_time             String?              // HH:mm format, e.g. "12:00"
+  is_all_day           Boolean              @default(false)
+  location_name        String?              // Free-text manual location (e.g. Ruang Rapat A, Lab 1, dll)
+  location_id          String?
+  location             Location?            @relation(fields: [location_id], references: [id])
+  description          String?              @db.Text
+  contact_info         String?              // External school/partner contact
+  requirements_notes   String?              @db.Text // Free-text multiline notes for barang/alat/konsumsi
+  is_deleted           Boolean              @default(false)
+  created_by_id        String
+  created_by           User                 @relation("CreatedBy", fields: [created_by_id], references: [id])
+  updated_by_id        String?
+  updated_by           User?                @relation("UpdatedBy", fields: [updated_by_id], references: [id])
+  created_at           DateTime             @default(now())
+  updated_at           DateTime             @updatedAt
+  candidate_dates      EventCandidateDate[]
+  attachments          EventAttachment[]
+
+  @@index([event_date])
+  @@index([location_id])
+  @@index([category_id])
+  @@index([status])
+  @@index([location_id, event_date])
+  @@map("events")
+}
+
+model EventCandidateDate {
+  id             String   @id @default(cuid())
+  event_id       String
+  event          Event    @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  candidate_date DateTime @db.Date
+  created_at     DateTime @default(now())
+
+  @@index([event_id])
+  @@map("event_candidate_dates")
+}
+
+model EventAttachment {
+  id                 String   @id @default(cuid())
+  event_id           String
+  event              Event    @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  file_name          String
+  file_size          Int?
+  mime_type          String?
+  drive_file_id      String?  // Google Drive File ID
+  drive_view_url     String   // Link Google Drive preview
+  drive_download_url String?  // Link Google Drive download
+  created_at         DateTime @default(now())
+
+  @@index([event_id])
+  @@map("event_attachments")
+}
+
+model LetterRecord {
+  id            String   @id @default(cuid())
+  template_type String   // 'MAGANG', 'TUGAS', 'UNDANGAN', 'AKTIF', 'PERMOHONAN', 'CUSTOM'
+  title         String
+  reference_no  String?  // Nomor surat
+  event_id      String?  // Optional link to event
+  created_by_id String
+  created_by    User     @relation("LetterCreator", fields: [created_by_id], references: [id])
+  payload_json  String   @db.Text // Full letter data / recipient rows
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@index([created_by_id])
+  @@map("letter_records")
+}

@@ -1,0 +1,59 @@
+services:
+  # Database PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: jadwal_kampus_db_prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ChangeThisSuperSecretDbPassword2026!}
+      POSTGRES_DB: ${POSTGRES_DB:-jadwal_kampus}
+    volumes:
+      - prod_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d jadwal_kampus"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jadwal_network
+
+  # Backend Node.js / Express API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: jadwal_kampus_api_prod
+    restart: always
+    environment:
+      PORT: 5000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-ChangeThisSuperSecretDbPassword2026!}@postgres:5432/${POSTGRES_DB:-jadwal_kampus}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-please_generate_random_64_char_key_in_production}
+      JWT_EXPIRES_IN: 7d
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - jadwal_network
+
+  # Frontend React SPA + Nginx Reverse Proxy
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: jadwal_kampus_web_prod
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - jadwal_network
+
+volumes:
+  prod_postgres_data:
+
+networks:
+  jadwal_network:
+    driver: bridge
