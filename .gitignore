@@ -18,6 +18,7 @@ dist/
 build/
 dist-ssr/
 *.tsbuildinfo
+.vite/
 
 # Uploads & temporary files
 uploads/
