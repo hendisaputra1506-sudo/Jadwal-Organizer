@@ -1,5 +1,30 @@
-const rawBaseUrl = import.meta.env.VITE_API_URL || '/api';
-const API_BASE_URL = rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
+function getApiBaseUrl(): string {
+  let url = (import.meta.env.VITE_API_URL || '').trim();
+
+  // Jika kosong, gunakan default relative path '/api' (proksi Vite lokal)
+  if (!url) {
+    return '/api';
+  }
+
+  // Jika pengguna lupa menuliskan protokol http:// atau https://
+  if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('/')) {
+    url = `https://${url}`;
+  }
+
+  // Hilangkan trailing slash di akhir URL
+  while (url.endsWith('/')) {
+    url = url.slice(0, -1);
+  }
+
+  // Jika URL domain lengkap dari cloud (Railway/VPS) dan belum berakhiran '/api'
+  if (!url.startsWith('/') && !url.endsWith('/api')) {
+    url = `${url}/api`;
+  }
+
+  return url;
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 interface ApiResponse<T = any> {
   success: boolean;

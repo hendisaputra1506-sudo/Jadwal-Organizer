@@ -60,17 +60,34 @@ const authLoginLimiter = rateLimit({
 app.use('/api', generalApiLimiter);
 app.use('/api/auth/login', authLoginLimiter);
 
-// 5. Konfigurasi CORS
-const allowedOrigins = ENV.CORS_ORIGIN.includes(',')
-  ? ENV.CORS_ORIGIN.split(',').map((o) => o.trim())
-  : ENV.CORS_ORIGIN === '*'
-  ? true
-  : ENV.CORS_ORIGIN;
+// 5. Konfigurasi CORS (Mendukung Vercel, Localhost, dan konfigurasi kustom)
+const isOriginAllowed = (origin: string | undefined): boolean => {
+  if (!origin) return true; // Request non-browser / server-to-server / curl
+  if (ENV.CORS_ORIGIN === '*') return true;
+
+  const configuredList = ENV.CORS_ORIGIN.split(',').map((o) => o.trim().toLowerCase());
+  const originLower = origin.toLowerCase();
+
+  return (
+    configuredList.includes(originLower) ||
+    originLower.endsWith('.vercel.app') ||
+    originLower.includes('localhost') ||
+    originLower.includes('127.0.0.1')
+  );
+};
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
