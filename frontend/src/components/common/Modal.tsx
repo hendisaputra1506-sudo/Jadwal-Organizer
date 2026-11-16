@@ -41,7 +41,7 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto no-print">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-6 overflow-y-auto no-print">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
@@ -50,14 +50,14 @@ export const Modal: React.FC<ModalProps> = ({
 
       {/* Modal Dialog Box */}
       <div
-        className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white rounded-clay-lg border border-white/80 shadow-clay-card p-6 z-10 transition-all transform animate-in zoom-in-95 duration-200`}
+        className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white rounded-clay-lg border border-white/80 shadow-clay-card p-4 sm:p-6 z-10 transition-all transform animate-in zoom-in-95 duration-200`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-start justify-between pb-3 border-b border-slate-100">
           <div>
             {title && (
-              <h3 className="text-lg font-bold text-slate-900 tracking-tight">{title}</h3>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">{title}</h3>
             )}
             {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}
           </div>
@@ -70,7 +70,7 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="py-4 max-h-[70vh] overflow-y-auto pr-1">{children}</div>
+        <div className="py-3 sm:py-4 max-h-[75vh] overflow-y-auto pr-1">{children}</div>
 
         {/* Footer */}
         {footer && (

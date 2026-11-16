@@ -15,6 +15,7 @@ import { TentativeEventsPage } from './pages/TentativeEvents/TentativeEventsPage
 import { PrintSchedulePage } from './pages/PrintSchedule/PrintSchedulePage';
 import { ManageCategoriesPage } from './pages/Admin/ManageCategoriesPage';
 import { ManageLocationsPage } from './pages/Admin/ManageLocationsPage';
+import { ManageUsersPage } from './pages/Admin/ManageUsersPage';
 import { LetterTemplatesPage } from './pages/Letters/LetterTemplatesPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -111,6 +112,14 @@ export const App: React.FC = () => {
                 element={
                   <AdminRoute>
                     <EventFormPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="admin/users"
+                element={
+                  <AdminRoute>
+                    <ManageUsersPage />
                   </AdminRoute>
                 }
               />

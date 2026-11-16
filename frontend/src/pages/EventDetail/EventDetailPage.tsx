@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   PackageCheck,
   CheckCircle2,
+  MessageCircle,
 } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
@@ -21,6 +22,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../components/commo
 import { CategoryBadge, StatusBadge, PrecisionBadge } from '../../components/common/Badge';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { Skeleton } from '../../components/feedback/Skeleton';
+import { WhatsAppFollowUpModal } from '../../components/events/WhatsAppFollowUpModal';
 import { api } from '../../services/api';
 import { EventItem } from '../../types/index';
 import { useAuth } from '../../context/AuthContext';
@@ -43,6 +45,7 @@ export const EventDetailPage: React.FC = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
   const [showCancelDialog, setShowCancelDialog] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [isWhatsAppOpen, setIsWhatsAppOpen] = useState<boolean>(false);
 
   const fetchEvent = useCallback(async () => {
     if (!id) return;
@@ -264,18 +267,32 @@ export const EventDetailPage: React.FC = () => {
             </div>
 
             {/* Kontak / Narahubung */}
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-clay-sm bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 flex-shrink-0">
-                <Phone className="w-4 h-4" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-clay-sm bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 flex-shrink-0">
+                  <Phone className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-xs font-semibold text-slate-400 block">
+                    Kontak / Narahubung Luar
+                  </span>
+                  <span className="font-bold text-slate-800 break-words">
+                    {event.contact_info || '—'}
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className="text-xs font-semibold text-slate-400 block">
-                  Kontak / Narahubung Luar
-                </span>
-                <span className="font-bold text-slate-800">
-                  {event.contact_info || '—'}
-                </span>
-              </div>
+
+              {event.contact_info && (
+                <button
+                  type="button"
+                  onClick={() => setIsWhatsAppOpen(true)}
+                  className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-clay-sm bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1.5 flex-shrink-0"
+                  title="Kirim pesan konfirmasi jadwal via WhatsApp"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Hubungi WA</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -411,6 +428,13 @@ export const EventDetailPage: React.FC = () => {
         confirmText="Batalkan Kegiatan"
         isDestructive={false}
         isLoading={isDeleting}
+      />
+
+      {/* WhatsApp Follow-up Modal */}
+      <WhatsAppFollowUpModal
+        isOpen={isWhatsAppOpen}
+        onClose={() => setIsWhatsAppOpen(false)}
+        event={event}
       />
     </div>
   );

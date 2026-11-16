@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   ChevronRight,
   Filter,
+  MessageCircle,
 } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
@@ -17,6 +18,7 @@ import { CategoryBadge, StatusBadge, PrecisionBadge } from '../../components/com
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { CardSkeleton } from '../../components/feedback/Skeleton';
 import { Tabs } from '../../components/common/Tabs';
+import { WhatsAppFollowUpModal } from '../../components/events/WhatsAppFollowUpModal';
 import { api } from '../../services/api';
 import { EventItem } from '../../types/index';
 import { useAuth } from '../../context/AuthContext';
@@ -33,6 +35,7 @@ export const TentativeEventsPage: React.FC = () => {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [activeTab, setActiveTab] = useState<string>('all');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [followUpEvent, setFollowUpEvent] = useState<EventItem | null>(null);
 
   const fetchTentativeEvents = useCallback(async () => {
     setIsLoading(true);
@@ -221,12 +224,29 @@ export const TentativeEventsPage: React.FC = () => {
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                   <span className="text-slate-400 font-medium">
                     {event.candidate_dates?.length
-                      ? `${event.candidate_dates.length} pilihan tanggal`
+                      ? `${event.candidate_dates.length} opsi tanggal`
                       : 'Menunggu konfirmasi'}
                   </span>
-                  <div className="flex items-center gap-1 text-blue-600 font-bold group-hover:translate-x-0.5 transition-transform">
-                    <span>Lihat Detail</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
+
+                  <div className="flex items-center gap-2">
+                    {/* Quick WhatsApp Follow-up Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFollowUpEvent(event);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-clay-sm bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                      title="Follow-up WhatsApp Narahubung"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Follow-up WA</span>
+                    </button>
+
+                    <div className="flex items-center gap-1 text-blue-600 font-bold group-hover:translate-x-0.5 transition-transform">
+                      <span>Detail</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -234,6 +254,12 @@ export const TentativeEventsPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      <WhatsAppFollowUpModal
+        isOpen={Boolean(followUpEvent)}
+        onClose={() => setFollowUpEvent(null)}
+        event={followUpEvent}
+      />
     </div>
   );
 };

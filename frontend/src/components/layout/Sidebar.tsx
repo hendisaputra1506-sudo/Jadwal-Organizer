@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   CalendarDays,
@@ -12,9 +12,12 @@ import {
   LogOut,
   User as UserIcon,
   ShieldAlert,
+  KeyRound,
+  Users,
   X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { ChangePasswordModal } from '../auth/ChangePasswordModal';
 import logoUtd from '../../Logo UTD.png';
 
 interface SidebarProps {
@@ -24,6 +27,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user, isAdmin, logout } = useAuth();
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const navItems = [
     {
@@ -60,9 +64,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const adminNavItems = [
     {
+      to: '/admin/users',
+      label: 'Kelola Pengguna',
+      icon: <Users className="w-5 h-5" />,
+    },
+    {
       to: '/admin/categories',
       label: 'Kelola Kategori',
       icon: <Tags className="w-5 h-5" />,
+    },
+    {
+      to: '/admin/locations',
+      label: 'Kelola Lokasi',
+      icon: <MapPin className="w-5 h-5" />,
     },
   ];
 
@@ -189,16 +203,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            <button
-              onClick={logout}
-              title="Keluar"
-              className="p-1.5 rounded-clay-sm text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setIsChangePasswordOpen(true)}
+                title="Ubah Kata Sandi"
+                className="p-1.5 rounded-clay-sm text-slate-400 hover:text-sky-300 hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <KeyRound className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={logout}
+                title="Keluar"
+                className="p-1.5 rounded-clay-sm text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </aside>
+
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
     </>
   );
 };

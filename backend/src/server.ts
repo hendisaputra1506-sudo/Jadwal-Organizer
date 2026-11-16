@@ -12,6 +12,8 @@ import locationRoutes from './routes/locationRoutes.js';
 import conflictRoutes from './routes/conflictRoutes.js';
 import attachmentRoutes from './routes/attachmentRoutes.js';
 import letterRoutes from './routes/letterRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import backupRoutes from './routes/backupRoutes.js';
 
 const app = express();
 
@@ -112,6 +114,8 @@ app.use('/api/locations', locationRoutes);
 app.use('/api/conflicts', conflictRoutes);
 app.use('/api/attachments', attachmentRoutes);
 app.use('/api/letters', letterRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/backup', backupRoutes);
 
 // 9. Centralized Error Handling Middleware
 app.use(errorHandler);

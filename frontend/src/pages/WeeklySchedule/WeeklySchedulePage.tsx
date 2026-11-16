@@ -18,11 +18,13 @@ import {
   Layers,
   X,
   Filter,
+  MessageSquareShare,
 } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
 import { CategoryBadge, StatusBadge } from '../../components/common/Badge';
 import { CardSkeleton } from '../../components/feedback/Skeleton';
+import { WhatsAppSummaryModal } from '../../components/events/WhatsAppSummaryModal';
 import { api } from '../../services/api';
 import { EventItem } from '../../types/index';
 import { useAuth } from '../../context/AuthContext';
@@ -44,6 +46,7 @@ export const WeeklySchedulePage: React.FC = () => {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [tentativeCount, setTentativeCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isWhatsAppSummaryOpen, setIsWhatsAppSummaryOpen] = useState<boolean>(false);
 
   // Helper to calculate Monday of the week
   const getMonday = (date: Date): Date => {
@@ -345,9 +348,20 @@ export const WeeklySchedulePage: React.FC = () => {
             </Button>
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
-            <div className="text-xs sm:text-sm font-black text-utd-navy-900 tracking-tight bg-blue-50/90 px-3.5 py-1.5 rounded-clay-sm border border-blue-200/70 flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-blue-600 flex-shrink-0" />
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-between md:justify-end">
+            <button
+              type="button"
+              onClick={() => setIsWhatsAppSummaryOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-clay-sm bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+              title="Salin dan format ringkasan agenda mingguan untuk WhatsApp grup kampus"
+            >
+              <MessageSquareShare className="w-4 h-4 text-emerald-600" />
+              <span className="hidden sm:inline">Salin Format WA Grup</span>
+              <span className="sm:hidden">Format WA</span>
+            </button>
+
+            <div className="text-xs sm:text-sm font-black text-utd-navy-900 tracking-tight bg-blue-50/90 px-3.5 py-1.5 rounded-clay-sm border border-blue-200/70 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
               <span className="truncate">{formatRangeLabel(monday, sunday)}</span>
             </div>
 
@@ -387,7 +401,7 @@ export const WeeklySchedulePage: React.FC = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5 overflow-x-auto no-scrollbar">
+          <div className="flex sm:grid sm:grid-cols-7 gap-1.5 sm:gap-2.5 overflow-x-auto no-scrollbar pb-1.5 snap-x">
             {daysOfWeek.map((day) => {
               const count = (eventsByDay[day.dateStr] || []).length;
               const isSelected = selectedDayFilter === day.dateStr;
@@ -400,7 +414,7 @@ export const WeeklySchedulePage: React.FC = () => {
                   onClick={() =>
                     setSelectedDayFilter((prev) => (prev === day.dateStr ? 'all' : day.dateStr))
                   }
-                  className={`flex flex-col items-center justify-center p-2 sm:p-3 rounded-clay-sm transition-all text-center relative group cursor-pointer ${
+                  className={`flex-shrink-0 min-w-[58px] sm:min-w-0 flex-1 flex flex-col items-center justify-center p-2 sm:p-3 rounded-clay-sm transition-all text-center relative group cursor-pointer snap-start ${
                     isSelected
                       ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
                       : day.isToday
@@ -411,7 +425,7 @@ export const WeeklySchedulePage: React.FC = () => {
                   {/* Today Badge */}
                   {day.isToday && (
                     <span
-                      className={`text-[9px] uppercase tracking-wider px-1.5 py-0.2 rounded-full font-bold shadow-xs mb-1 ${
+                      className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full font-bold shadow-xs mb-1 whitespace-nowrap leading-none ${
                         isSelected ? 'bg-sky-300 text-slate-900' : 'bg-blue-500 text-white'
                       }`}
                     >
@@ -1022,16 +1036,15 @@ export const WeeklySchedulePage: React.FC = () => {
         )}
 
         {/* =========================================================================
-           C. MOBILE VIEW (Visible on small screens: md:hidden)
+           C. MOBILE VIEW (Visible on small screens: md:hidden when selectedDayFilter is 'all')
            ========================================================================= */}
-        <div className="md:hidden space-y-3">
-          {daysOfWeek
-            .filter((day) => selectedDayFilter === 'all' || selectedDayFilter === day.dateStr)
-            .map((day) => {
+        {selectedDayFilter === 'all' && (
+          <div className="md:hidden space-y-3">
+            {daysOfWeek.map((day) => {
               const dayEvents = filteredEventsByDay[day.dateStr] || [];
 
               // If viewing all days on mobile and this day is empty, render a compact subtle strip
-              if (selectedDayFilter === 'all' && dayEvents.length === 0) {
+              if (dayEvents.length === 0) {
                 return (
                   <div
                     key={day.dateStr}
@@ -1153,8 +1166,17 @@ export const WeeklySchedulePage: React.FC = () => {
                 </div>
               );
             })}
-        </div>
+          </div>
+        )}
       </div>
+
+      {/* Modal Format WhatsApp Agenda Mingguan */}
+      <WhatsAppSummaryModal
+        isOpen={isWhatsAppSummaryOpen}
+        onClose={() => setIsWhatsAppSummaryOpen(false)}
+        events={events}
+        daysOfWeek={daysOfWeek}
+      />
     </div>
   );
 };
