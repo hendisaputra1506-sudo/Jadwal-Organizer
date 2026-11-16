@@ -5,9 +5,11 @@ import {
   Send,
   Copy,
   Check,
-  ExternalLink,
-  HelpCircle,
   Info,
+  CheckCircle2,
+  Clock,
+  HeartHandshake,
+  AlertTriangle,
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
@@ -16,7 +18,9 @@ import {
   extractPhoneNumber,
   formatToWhatsAppNumber,
   generateFollowUpMessage,
+  detectDefaultTemplateMode,
   getWhatsAppUrl,
+  WhatsAppTemplateMode,
 } from '../../utils/whatsappHelper';
 import { useToast } from '../../context/ToastContext';
 
@@ -34,19 +38,29 @@ export const WhatsAppFollowUpModal: React.FC<WhatsAppFollowUpModalProps> = ({
   const { success, error: toastError } = useToast();
 
   const [phone, setPhone] = useState<string>('');
+  const [templateMode, setTemplateMode] = useState<WhatsAppTemplateMode>('WAITING_CONFIRMATION');
   const [message, setMessage] = useState<string>('');
   const [isCopied, setIsCopied] = useState<boolean>(false);
 
+  // Sync phone, mode, and message whenever event updates or modal opens
   useEffect(() => {
-    if (event) {
+    if (event && isOpen) {
       const extracted = extractPhoneNumber(event.contact_info);
+      const defaultMode = detectDefaultTemplateMode(event);
       setPhone(extracted || '');
-      setMessage(generateFollowUpMessage(event));
+      setTemplateMode(defaultMode);
+      setMessage(generateFollowUpMessage(event, defaultMode));
       setIsCopied(false);
     }
-  }, [event]);
+  }, [event, isOpen]);
 
   if (!event) return null;
+
+  const handleModeChange = (newMode: WhatsAppTemplateMode) => {
+    setTemplateMode(newMode);
+    setMessage(generateFollowUpMessage(event, newMode));
+    setIsCopied(false);
+  };
 
   const handleCopy = async () => {
     try {
@@ -76,12 +90,44 @@ export const WhatsAppFollowUpModal: React.FC<WhatsAppFollowUpModalProps> = ({
     onClose();
   };
 
+  const templateOptions: Array<{
+    id: WhatsAppTemplateMode;
+    label: string;
+    icon: React.ReactNode;
+    activeClass: string;
+  }> = [
+    {
+      id: 'CONFIRMED',
+      label: 'Konfirmasi Jadi Hadir (Pasti)',
+      icon: <CheckCircle2 className="w-3.5 h-3.5" />,
+      activeClass: 'bg-emerald-600 text-white border-emerald-600 shadow-xs',
+    },
+    {
+      id: 'WAITING_CONFIRMATION',
+      label: 'Minta Kepastian Jadwal',
+      icon: <Clock className="w-3.5 h-3.5" />,
+      activeClass: 'bg-amber-600 text-white border-amber-600 shadow-xs',
+    },
+    {
+      id: 'COMPLETED',
+      label: 'Terima Kasih (Selesai)',
+      icon: <HeartHandshake className="w-3.5 h-3.5" />,
+      activeClass: 'bg-blue-600 text-white border-blue-600 shadow-xs',
+    },
+    {
+      id: 'CANCELLED',
+      label: 'Info Tunda / Batal',
+      icon: <AlertTriangle className="w-3.5 h-3.5" />,
+      activeClass: 'bg-rose-600 text-white border-rose-600 shadow-xs',
+    },
+  ];
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Quick WhatsApp Follow-up"
-      description="Kirim pesan konfirmasi resmi ke pihak narahubung sekolah atau mitra luar kampus."
+      title="Hubungi Narahubung via WhatsApp"
+      description="Isi pesan otomatis menyesuaikan status kegiatan saat ini (dapat diubah atau diedit sesuai kebutuhan)."
       maxWidth="lg"
       footer={
         <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between w-full gap-2.5">
@@ -89,7 +135,9 @@ export const WhatsAppFollowUpModal: React.FC<WhatsAppFollowUpModalProps> = ({
             type="button"
             variant="outline"
             size="sm"
-            leftIcon={isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+            leftIcon={
+              isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />
+            }
             onClick={handleCopy}
             className="w-full sm:w-auto"
           >
@@ -127,7 +175,13 @@ export const WhatsAppFollowUpModal: React.FC<WhatsAppFollowUpModalProps> = ({
           </div>
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-              Kegiatan yang Dikonfirmasi
+              {templateMode === 'CONFIRMED'
+                ? 'Konfirmasi Pelaksanaan (Jadwal Pasti)'
+                : templateMode === 'WAITING_CONFIRMATION'
+                ? 'Permintaan Kepastian Jadwal (Tentatif)'
+                : templateMode === 'COMPLETED'
+                ? 'Ucapan Terima Kasih Pasca Kegiatan'
+                : 'Pemberitahuan Penundaan / Pembatalan'}
             </p>
             <p className="text-sm font-bold text-slate-900 truncate mt-0.5">{event.name}</p>
             {event.contact_info && (
@@ -163,6 +217,33 @@ export const WhatsAppFollowUpModal: React.FC<WhatsAppFollowUpModalProps> = ({
           </p>
         </div>
 
+        {/* Quick Template Mode Selector */}
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+            Jenis Template Pesan (Otomatis Menyesuaikan Status)
+          </label>
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+            {templateOptions.map((opt) => {
+              const isActive = templateMode === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => handleModeChange(opt.id)}
+                  className={`px-2.5 py-2 rounded-clay-sm border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer text-left ${
+                    isActive
+                      ? opt.activeClass
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="flex-shrink-0">{opt.icon}</span>
+                  <span className="truncate">{opt.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Message Template Textarea */}
         <div>
           <div className="flex items-center justify-between mb-1">
@@ -174,7 +255,7 @@ export const WhatsAppFollowUpModal: React.FC<WhatsAppFollowUpModalProps> = ({
             </span>
           </div>
           <textarea
-            rows={8}
+            rows={9}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             className="w-full p-3 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-clay-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-sans leading-relaxed"
@@ -182,7 +263,8 @@ export const WhatsAppFollowUpModal: React.FC<WhatsAppFollowUpModalProps> = ({
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-1.5">
             <Info className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
             <span>
-              Saat mengklik <strong>Kirim via WhatsApp</strong>, browser akan langsung membuka WhatsApp Web atau aplikasi WhatsApp di perangkat Anda.
+              Saat mengklik <strong>Kirim via WhatsApp</strong>, browser akan langsung membuka
+              WhatsApp Web atau aplikasi WhatsApp di perangkat Anda.
             </span>
           </div>
         </div>

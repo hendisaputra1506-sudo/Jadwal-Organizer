@@ -367,7 +367,13 @@ export const EventFormPage: React.FC = () => {
                 <Select
                   label="Status Siklus Kegiatan"
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as EventStatus)}
+                  onChange={(e) => {
+                    const nextStatus = e.target.value as EventStatus;
+                    setStatus(nextStatus);
+                    if (nextStatus === 'CONFIRMED' && datePrecision !== 'EXACT') {
+                      setDatePrecision('EXACT');
+                    }
+                  }}
                 >
                   <option value="DRAFT">Tentatif (Draft)</option>
                   <option value="WAITING_CONFIRMATION">Menunggu Konfirmasi</option>
@@ -402,7 +408,10 @@ export const EventFormPage: React.FC = () => {
                     type="button"
                     onClick={() => {
                       setDatePrecision(item.id as DatePrecision);
-                      if (item.id === 'EXACT' && status === 'DRAFT') {
+                      if (
+                        item.id === 'EXACT' &&
+                        (status === 'DRAFT' || status === 'WAITING_CONFIRMATION')
+                      ) {
                         setStatus('CONFIRMED');
                       } else if (item.id !== 'EXACT' && status === 'CONFIRMED') {
                         setStatus('WAITING_CONFIRMATION');
