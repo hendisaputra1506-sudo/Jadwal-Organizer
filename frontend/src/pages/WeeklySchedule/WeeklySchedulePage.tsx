@@ -304,15 +304,13 @@ export const WeeklySchedulePage: React.FC = () => {
         title="Jadwal Minggu Ini"
         subtitle={formatRangeLabel(monday, sunday)}
         action={
-          isAdmin ? (
-            <Button
-              size="sm"
-              leftIcon={<Plus className="w-4 h-4" />}
-              onClick={() => navigate('/events/new')}
-            >
-              Tambah Kegiatan
-            </Button>
-          ) : undefined
+          <Button
+            size="sm"
+            leftIcon={<Plus className="w-4 h-4" />}
+            onClick={() => navigate('/events/new')}
+          >
+            Tambah Kegiatan
+          </Button>
         }
       />
 
@@ -594,16 +592,14 @@ export const WeeklySchedulePage: React.FC = () => {
                     Semua jadwal perkuliahan, rapat, dan kegiatan akademik terpantau aman dan terkendali.
                   </p>
                 </div>
-                {isAdmin && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => navigate('/events/new')}
-                    leftIcon={<Plus className="w-4 h-4 text-white" />}
-                  >
-                    Jadwalkan Acara Baru
-                  </Button>
-                )}
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => navigate('/events/new')}
+                  leftIcon={<Plus className="w-4 h-4 text-white" />}
+                >
+                  Jadwalkan Acara Baru
+                </Button>
               </div>
             )}
           </div>
@@ -957,15 +953,13 @@ export const WeeklySchedulePage: React.FC = () => {
                           Silakan pilih hari lain atau jadwalkan kegiatan baru.
                         </p>
                       </div>
-                      {isAdmin && (
-                        <Button
-                          size="sm"
-                          leftIcon={<Plus className="w-4 h-4" />}
-                          onClick={() => navigate('/events/new')}
-                        >
-                          Tambah Kegiatan
-                        </Button>
-                      )}
+                      <Button
+                        size="sm"
+                        leftIcon={<Plus className="w-4 h-4" />}
+                        onClick={() => navigate('/events/new')}
+                      >
+                        Tambah Kegiatan
+                      </Button>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">

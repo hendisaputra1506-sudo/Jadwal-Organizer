@@ -149,15 +149,13 @@ export const CalendarPage: React.FC = () => {
         title="Kalender Kegiatan"
         subtitle={`${monthNames[month - 1]} ${year}`}
         action={
-          isAdmin ? (
-            <Button
-              size="sm"
-              leftIcon={<Plus className="w-4 h-4" />}
-              onClick={() => navigate('/events/new')}
-            >
-              Tambah Kegiatan
-            </Button>
-          ) : undefined
+          <Button
+            size="sm"
+            leftIcon={<Plus className="w-4 h-4" />}
+            onClick={() => navigate('/events/new')}
+          >
+            Tambah Kegiatan
+          </Button>
         }
       />
 
@@ -370,16 +368,14 @@ export const CalendarPage: React.FC = () => {
                       {formatSelectedDateLabel(selectedDate)}
                     </span>
                   </div>
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigate('/events/new')}
-                      leftIcon={<Plus className="w-3.5 h-3.5" />}
-                    >
-                      Tambah
-                    </Button>
-                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate('/events/new')}
+                    leftIcon={<Plus className="w-3.5 h-3.5" />}
+                  >
+                    Tambah
+                  </Button>
                 </div>
 
                 {/* Events on selected date */}

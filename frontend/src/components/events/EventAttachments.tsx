@@ -258,17 +258,15 @@ export const EventAttachments: React.FC<EventAttachmentsProps> = ({
             </div>
           )}
 
-          {/* Upload Button - Khusus ADMIN */}
-          {isAdmin && (
-            <Button
-              size="sm"
-              leftIcon={<UploadCloud className="w-4 h-4" />}
-              onClick={() => setIsModalOpen(true)}
-              className="no-print"
-            >
-              Upload File
-            </Button>
-          )}
+          {/* Upload Button */}
+          <Button
+            size="sm"
+            leftIcon={<UploadCloud className="w-4 h-4" />}
+            onClick={() => setIsModalOpen(true)}
+            className="no-print"
+          >
+            Upload File
+          </Button>
         </div>
       </div>
 
@@ -283,17 +281,15 @@ export const EventAttachments: React.FC<EventAttachmentsProps> = ({
               Unggah file proposal, susunan acara, surat undangan, atau materi untuk memudahkan
               akses seluruh tim.
             </p>
-            {isAdmin && (
-              <Button
-                variant="outline"
-                size="sm"
-                leftIcon={<UploadCloud className="w-4 h-4" />}
-                onClick={() => setIsModalOpen(true)}
-                className="no-print"
-              >
-                Unggah Dokumen Pertama
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<UploadCloud className="w-4 h-4" />}
+              onClick={() => setIsModalOpen(true)}
+              className="no-print"
+            >
+              Unggah Dokumen Pertama
+            </Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">

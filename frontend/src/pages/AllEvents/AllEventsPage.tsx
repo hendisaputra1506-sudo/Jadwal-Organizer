@@ -219,16 +219,14 @@ export const AllEventsPage: React.FC = () => {
         title="Semua Kegiatan"
         subtitle="Daftar seluruh jadwal kegiatan kampus baik terkonfirmasi maupun tentatif"
         action={
-          isAdmin ? (
-            <Button
-              size="sm"
-              leftIcon={<Plus className="w-4 h-4" />}
-              onClick={() => navigate('/events/new')}
-            >
-              <span className="hidden sm:inline">Tambah Kegiatan</span>
-              <span className="sm:hidden">Tambah</span>
-            </Button>
-          ) : undefined
+          <Button
+            size="sm"
+            leftIcon={<Plus className="w-4 h-4" />}
+            onClick={() => navigate('/events/new')}
+          >
+            <span className="hidden sm:inline">Tambah Kegiatan</span>
+            <span className="sm:hidden">Tambah</span>
+          </Button>
         }
       />
 
@@ -329,7 +327,7 @@ export const AllEventsPage: React.FC = () => {
                 ? 'Coba sesuaikan kata kunci pencarian atau ubah opsi filter Anda.'
                 : 'Mulai dengan menambahkan jadwal kegiatan baru.'
             }
-            actionText={hasActiveFilters ? 'Reset Semua Filter' : isAdmin ? 'Tambah Kegiatan' : undefined}
+            actionText={hasActiveFilters ? 'Reset Semua Filter' : 'Tambah Kegiatan'}
             onAction={hasActiveFilters ? handleResetFilters : () => navigate('/events/new')}
           />
         ) : (
@@ -449,23 +447,21 @@ export const AllEventsPage: React.FC = () => {
                               onClick={(e) => e.stopPropagation()}
                             >
                               <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => navigate(`/events/${ev.id}/edit`)}
+                                  title="Edit Kegiatan"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
                                 {isAdmin && (
-                                  <>
-                                    <button
-                                      onClick={() => navigate(`/events/${ev.id}/edit`)}
-                                      title="Edit Kegiatan"
-                                      className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                                    >
-                                      <Edit className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => setDeleteTarget(ev)}
-                                      title="Hapus Kegiatan"
-                                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  </>
+                                  <button
+                                    onClick={() => setDeleteTarget(ev)}
+                                    title="Hapus Kegiatan"
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
                                 )}
                                 <button
                                   onClick={() => navigate(`/events/${ev.id}`)}

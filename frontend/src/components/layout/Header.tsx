@@ -59,7 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden sm:inline">Ganti Sandi</span>
             </button>
 
-            {isAdmin && !action && (
+            {!action && (
               <Link to="/events/new">
                 <Button size="sm" leftIcon={<Plus className="w-4 h-4" />}>
                   <span className="hidden sm:inline">Tambah Kegiatan</span>

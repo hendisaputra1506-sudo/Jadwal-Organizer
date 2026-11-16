@@ -157,16 +157,14 @@ export const EventDetailPage: React.FC = () => {
                 <span className="sm:hidden">Cetak</span>
               </Button>
             </Link>
-            {isAdmin && (
-              <Button
-                size="sm"
-                leftIcon={<Edit className="w-4 h-4" />}
-                onClick={() => navigate(`/events/${event.id}/edit`)}
-              >
-                <span className="hidden sm:inline">Edit Kegiatan</span>
-                <span className="sm:hidden">Edit</span>
-              </Button>
-            )}
+            <Button
+              size="sm"
+              leftIcon={<Edit className="w-4 h-4" />}
+              onClick={() => navigate(`/events/${event.id}/edit`)}
+            >
+              <span className="hidden sm:inline">Edit Kegiatan</span>
+              <span className="sm:hidden">Edit</span>
+            </Button>
           </div>
         }
       />
@@ -358,6 +356,24 @@ export const EventDetailPage: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Metadata & Creator Tracking (Sync Info) */}
+          <div className="px-4 py-3 sm:px-6 bg-slate-50/80 border-t border-slate-100 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2 rounded-b-clay">
+            <div className="flex items-center gap-1.5">
+              <span>Dibuat oleh:</span>
+              <span className="font-semibold text-slate-700">
+                {event.created_by?.name || 'Sistem Kampus'}
+              </span>
+            </div>
+            {event.updated_by && (
+              <div className="flex items-center gap-1.5">
+                <span>Terakhir diperbarui:</span>
+                <span className="font-semibold text-slate-700">
+                  {event.updated_by.name}
+                </span>
+              </div>
+            )}
+          </div>
         </Card>
  
         {/* Lampiran & Dokumen Kegiatan (Google Drive) */}
@@ -367,42 +383,42 @@ export const EventDetailPage: React.FC = () => {
           onAttachmentChange={fetchEvent}
         />
 
-        {/* Admin Action Buttons */}
-        {isAdmin && (
-          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 pt-2 no-print">
-            <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
-              {event.status !== 'CANCELLED' && (
+        {/* Action Buttons: Collaborative Edit for all, Delete strictly Admin */}
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 pt-2 no-print">
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <>
+                {event.status !== 'CANCELLED' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    leftIcon={<XCircle className="w-4 h-4 text-amber-600" />}
+                    onClick={() => setShowCancelDialog(true)}
+                  >
+                    Batalkan
+                  </Button>
+                )}
                 <Button
-                  variant="outline"
+                  variant="danger"
                   size="sm"
-                  leftIcon={<XCircle className="w-4 h-4 text-amber-600" />}
-                  onClick={() => setShowCancelDialog(true)}
-                  className="w-full"
+                  leftIcon={<Trash2 className="w-4 h-4" />}
+                  onClick={() => setShowDeleteDialog(true)}
                 >
-                  Batalkan
+                  Hapus
                 </Button>
-              )}
-              <Button
-                variant="danger"
-                size="sm"
-                leftIcon={<Trash2 className="w-4 h-4" />}
-                onClick={() => setShowDeleteDialog(true)}
-                className="w-full"
-              >
-                Hapus
-              </Button>
-            </div>
-
-            <Button
-              size="sm"
-              leftIcon={<Edit className="w-4 h-4" />}
-              onClick={() => navigate(`/events/${event.id}/edit`)}
-              className="w-full sm:w-auto"
-            >
-              Ubah Kegiatan
-            </Button>
+              </>
+            )}
           </div>
-        )}
+
+          <Button
+            size="sm"
+            leftIcon={<Edit className="w-4 h-4" />}
+            onClick={() => navigate(`/events/${event.id}/edit`)}
+            className="w-full sm:w-auto"
+          >
+            Ubah Kegiatan
+          </Button>
+        </div>
       </div>
 
       {/* Confirm Delete Dialog */}

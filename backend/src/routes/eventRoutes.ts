@@ -21,10 +21,12 @@ router.get('/tentative', authenticateToken, getTentative);
 router.get('/', authenticateToken, getAll);
 router.get('/:id', authenticateToken, getById);
 
-// Write routes (ADMIN only)
-router.post('/', authenticateToken, requireAdmin, create);
-router.put('/:id', authenticateToken, requireAdmin, update);
+// Write routes:
+// - Create & Edit: Both ADMIN and STAFF (collaborative)
+// - Delete: strictly ADMIN only
+router.post('/', authenticateToken, create);
+router.put('/:id', authenticateToken, update);
+router.patch('/:id/cancel', authenticateToken, cancel);
 router.delete('/:id', authenticateToken, requireAdmin, remove);
-router.patch('/:id/cancel', authenticateToken, requireAdmin, cancel);
 
 export default router;

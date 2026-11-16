@@ -111,16 +111,14 @@ export const TentativeEventsPage: React.FC = () => {
         title="Kegiatan Tentatif"
         subtitle="Daftar kegiatan dengan tanggal belum pasti yang memerlukan pemantauan & kepastian"
         action={
-          isAdmin ? (
-            <Button
-              size="sm"
-              leftIcon={<Plus className="w-4 h-4" />}
-              onClick={() => navigate('/events/new')}
-            >
-              <span className="hidden sm:inline">Tambah Kegiatan</span>
-              <span className="sm:hidden">Tambah</span>
-            </Button>
-          ) : undefined
+          <Button
+            size="sm"
+            leftIcon={<Plus className="w-4 h-4" />}
+            onClick={() => navigate('/events/new')}
+          >
+            <span className="hidden sm:inline">Tambah Kegiatan</span>
+            <span className="sm:hidden">Tambah</span>
+          </Button>
         }
       />
 
@@ -155,8 +153,8 @@ export const TentativeEventsPage: React.FC = () => {
           <EmptyState
             title="Belum Ada Kegiatan Tentatif"
             description="Semua kegiatan saat ini telah terkonfirmasi dengan tanggal pasti."
-            actionText={isAdmin ? 'Buat Kegiatan Baru' : undefined}
-            onAction={isAdmin ? () => navigate('/events/new') : undefined}
+            actionText="Buat Kegiatan Baru"
+            onAction={() => navigate('/events/new')}
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">

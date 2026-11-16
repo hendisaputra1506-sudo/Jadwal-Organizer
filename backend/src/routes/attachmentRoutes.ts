@@ -49,18 +49,16 @@ router.get('/status', authenticateToken, getDriveStatus);
 router.get('/event/:eventId', authenticateToken, getEventAttachments);
 router.get('/events/:eventId/attachments', authenticateToken, getEventAttachments);
 
-// Upload attachment kegiatan (Khusus ADMIN)
+// Upload attachment kegiatan (ADMIN & STAFF)
 router.post(
   '/event/:eventId',
   authenticateToken,
-  requireAdmin,
   upload.single('file'),
   uploadEventAttachment
 );
 router.post(
   '/events/:eventId/attachments',
   authenticateToken,
-  requireAdmin,
   upload.single('file'),
   uploadEventAttachment
 );

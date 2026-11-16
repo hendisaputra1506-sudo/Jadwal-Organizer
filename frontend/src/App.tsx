@@ -85,9 +85,11 @@ export const App: React.FC = () => {
               {/* Calendar Views */}
               <Route path="calendar" element={<CalendarPage />} />
 
-              {/* Events Views */}
+              {/* Events Views (Accessible by both Admin & Staff) */}
               <Route path="events" element={<AllEventsPage />} />
+              <Route path="events/new" element={<EventFormPage />} />
               <Route path="events/:id" element={<EventDetailPage />} />
+              <Route path="events/:id/edit" element={<EventFormPage />} />
 
               {/* Tentative Schedules */}
               <Route path="tentative" element={<TentativeEventsPage />} />
@@ -99,22 +101,6 @@ export const App: React.FC = () => {
               <Route path="letters" element={<LetterTemplatesPage />} />
 
               {/* Admin Only Routes */}
-              <Route
-                path="events/new"
-                element={
-                  <AdminRoute>
-                    <EventFormPage />
-                  </AdminRoute>
-                }
-              />
-              <Route
-                path="events/:id/edit"
-                element={
-                  <AdminRoute>
-                    <EventFormPage />
-                  </AdminRoute>
-                }
-              />
               <Route
                 path="admin/users"
                 element={
