@@ -258,8 +258,8 @@ export const EventAttachments: React.FC<EventAttachmentsProps> = ({
             </div>
           )}
 
-          {/* Upload Button */}
-          {user && (
+          {/* Upload Button - Khusus ADMIN */}
+          {isAdmin && (
             <Button
               size="sm"
               leftIcon={<UploadCloud className="w-4 h-4" />}
@@ -283,7 +283,7 @@ export const EventAttachments: React.FC<EventAttachmentsProps> = ({
               Unggah file proposal, susunan acara, surat undangan, atau materi untuk memudahkan
               akses seluruh tim.
             </p>
-            {user && (
+            {isAdmin && (
               <Button
                 variant="outline"
                 size="sm"
@@ -365,8 +365,8 @@ export const EventAttachments: React.FC<EventAttachmentsProps> = ({
                       </a>
                     )}
 
-                    {/* Delete button for admin or authenticated user */}
-                    {(isAdmin || user) && (
+                    {/* Delete button - Khusus ADMIN */}
+                    {isAdmin && (
                       <button
                         onClick={() => setDeleteTarget(file)}
                         className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-colors cursor-pointer"

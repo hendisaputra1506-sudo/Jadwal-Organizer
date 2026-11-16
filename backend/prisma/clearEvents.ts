@@ -5,7 +5,10 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🧹 Membersihkan seluruh data jadwal kegiatan...');
   
-  // Hapus semua relasi kandidat tanggal terlebih dahulu
+  // Hapus semua relasi lampiran dan kandidat tanggal terlebih dahulu
+  const attachmentResult = await prisma.eventAttachment.deleteMany();
+  console.log(`✅ Berhasil menghapus ${attachmentResult.count} berkas lampiran kegiatan.`);
+
   const candidateResult = await prisma.eventCandidateDate.deleteMany();
   console.log(`✅ Berhasil menghapus ${candidateResult.count} data opsi kandidat tanggal.`);
 

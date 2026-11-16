@@ -20,8 +20,9 @@ dist-ssr/
 *.tsbuildinfo
 .vite/
 
-# Uploads & temporary files
+# Uploads, backups & temporary files
 uploads/
+backups/
 *.log
 npm-debug.log*
 yarn-debug.log*

@@ -49,25 +49,28 @@ router.get('/status', authenticateToken, getDriveStatus);
 router.get('/event/:eventId', authenticateToken, getEventAttachments);
 router.get('/events/:eventId/attachments', authenticateToken, getEventAttachments);
 
-// Upload attachment kegiatan
+// Upload attachment kegiatan (Khusus ADMIN)
 router.post(
   '/event/:eventId',
   authenticateToken,
+  requireAdmin,
   upload.single('file'),
   uploadEventAttachment
 );
 router.post(
   '/events/:eventId/attachments',
   authenticateToken,
+  requireAdmin,
   upload.single('file'),
   uploadEventAttachment
 );
 
-// Hapus attachment kegiatan
-router.delete('/:id', authenticateToken, deleteEventAttachment);
+// Hapus attachment kegiatan (Khusus ADMIN)
+router.delete('/:id', authenticateToken, requireAdmin, deleteEventAttachment);
 router.delete(
   '/events/:eventId/attachments/:attachmentId',
   authenticateToken,
+  requireAdmin,
   deleteEventAttachment
 );
 

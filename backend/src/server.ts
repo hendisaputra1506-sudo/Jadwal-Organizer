@@ -112,7 +112,6 @@ app.use('/api/locations', locationRoutes);
 app.use('/api/conflicts', conflictRoutes);
 app.use('/api/attachments', attachmentRoutes);
 app.use('/api/letters', letterRoutes);
-app.use('/api', attachmentRoutes);
 
 // 9. Centralized Error Handling Middleware
 app.use(errorHandler);
