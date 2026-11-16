@@ -655,7 +655,7 @@ export const ManageUsersPage: React.FC = () => {
                 <div>
                   <p className="text-xs font-bold text-slate-900">Staf Kampus</p>
                   <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                    Bisa melihat jadwal, kalender, mengunduh lampiran, dan mencetak jadwal.
+                    Bisa menambah, mengubah, mencetak jadwal & upload berkas (tanpa akses hapus).
                   </p>
                 </div>
               </label>
@@ -780,7 +780,7 @@ export const ManageUsersPage: React.FC = () => {
                   <div>
                     <p className="text-xs font-bold text-slate-900">Staf Kampus</p>
                     <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                      Akses baca jadwal & cetak agenda.
+                      Tambah, ubah & cetak jadwal (tanpa hapus).
                     </p>
                   </div>
                 </label>
@@ -798,7 +798,7 @@ export const ManageUsersPage: React.FC = () => {
                     value="ADMIN"
                     checked={editRole === 'ADMIN'}
                     onChange={() => setEditRole('ADMIN')}
-                    className="mt-1 text-purple-600 focus:ring-purple-500"
+                     className="mt-1 text-purple-600 focus:ring-purple-500"
                   />
                   <div>
                     <p className="text-xs font-bold text-slate-900">Administrator</p>
@@ -819,7 +819,7 @@ export const ManageUsersPage: React.FC = () => {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDeleteUser}
         title="Hapus Akun Pengguna?"
-        message={`Apakah Anda yakin ingin menghapus akun @${deleteTarget?.username} (${deleteTarget?.name})? Akun ini tidak akan bisa login lagi ke sistem.`}
+        message={`Apakah Anda yakin ingin menghapus akun @${deleteTarget?.username} (${deleteTarget?.name})? Akun ini tidak akan bisa login lagi, namun seluruh jadwal kegiatan yang pernah dibuat tetap tersimpan aman.`}
         confirmText="Hapus Akun"
         isDestructive={true}
         isLoading={isDeleting}

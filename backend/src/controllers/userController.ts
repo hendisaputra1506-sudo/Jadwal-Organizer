@@ -196,6 +196,14 @@ export async function deleteUser(req: AuthenticatedRequest, res: Response): Prom
     const { id } = req.params;
     const currentAdminId = req.user?.userId;
 
+    if (!currentAdminId) {
+      res.status(401).json({
+        success: false,
+        message: 'Sesi tidak valid. Silakan login kembali.',
+      });
+      return;
+    }
+
     // Mencegah admin menghapus akunnya sendiri
     if (id === currentAdminId) {
       res.status(400).json({
@@ -214,9 +222,25 @@ export async function deleteUser(req: AuthenticatedRequest, res: Response): Prom
       return;
     }
 
-    await prisma.user.delete({
-      where: { id },
-    });
+    // Alihkan relasi kegiatan & surat ke Admin aktif agar jadwal tidak hilang
+    // dan tidak memicu error Foreign Key Constraint (500) saat akun staf dihapus
+    await prisma.$transaction([
+      prisma.event.updateMany({
+        where: { created_by_id: id },
+        data: { created_by_id: currentAdminId },
+      }),
+      prisma.event.updateMany({
+        where: { updated_by_id: id },
+        data: { updated_by_id: null },
+      }),
+      prisma.letterRecord.updateMany({
+        where: { created_by_id: id },
+        data: { created_by_id: currentAdminId },
+      }),
+      prisma.user.delete({
+        where: { id },
+      }),
+    ]);
 
     res.json({
       success: true,
