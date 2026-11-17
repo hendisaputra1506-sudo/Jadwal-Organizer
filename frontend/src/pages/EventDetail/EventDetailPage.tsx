@@ -15,6 +15,7 @@ import {
   PackageCheck,
   CheckCircle2,
   MessageCircle,
+  Copy,
 } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
@@ -157,6 +158,16 @@ export const EventDetailPage: React.FC = () => {
                 <span className="sm:hidden">Cetak</span>
               </Button>
             </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Copy className="w-4 h-4 text-blue-600" />}
+              onClick={() => navigate(`/events/new?duplicateFrom=${event.id}`)}
+              title="Duplikat isi kegiatan ini untuk jadwal atau lokasi baru"
+            >
+              <span className="hidden sm:inline">Duplikat</span>
+              <span className="sm:hidden">Salin</span>
+            </Button>
             <Button
               size="sm"
               leftIcon={<Edit className="w-4 h-4" />}
@@ -410,14 +421,25 @@ export const EventDetailPage: React.FC = () => {
             )}
           </div>
 
-          <Button
-            size="sm"
-            leftIcon={<Edit className="w-4 h-4" />}
-            onClick={() => navigate(`/events/${event.id}/edit`)}
-            className="w-full sm:w-auto"
-          >
-            Ubah Kegiatan
-          </Button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Copy className="w-4 h-4 text-blue-600" />}
+              onClick={() => navigate(`/events/new?duplicateFrom=${event.id}`)}
+              className="w-full sm:w-auto"
+            >
+              Duplikat Kegiatan
+            </Button>
+            <Button
+              size="sm"
+              leftIcon={<Edit className="w-4 h-4" />}
+              onClick={() => navigate(`/events/${event.id}/edit`)}
+              className="w-full sm:w-auto"
+            >
+              Ubah Kegiatan
+            </Button>
+          </div>
         </div>
       </div>
 

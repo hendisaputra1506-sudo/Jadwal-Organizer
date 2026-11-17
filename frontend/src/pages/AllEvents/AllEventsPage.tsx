@@ -11,6 +11,7 @@ import {
   Edit,
   Trash2,
   ChevronRight,
+  Copy,
 } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
@@ -448,9 +449,16 @@ export const AllEventsPage: React.FC = () => {
                             >
                               <div className="flex items-center justify-end gap-1.5">
                                 <button
+                                  onClick={() => navigate(`/events/new?duplicateFrom=${ev.id}`)}
+                                  title="Duplikat Kegiatan"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </button>
+                                <button
                                   onClick={() => navigate(`/events/${ev.id}/edit`)}
                                   title="Edit Kegiatan"
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
                                 >
                                   <Edit className="w-4 h-4" />
                                 </button>
@@ -546,7 +554,21 @@ export const AllEventsPage: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/events/new?duplicateFrom=${ev.id}`);
+                              }}
+                              title="Duplikat Kegiatan"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 text-[11px] font-semibold transition-colors cursor-pointer"
+                            >
+                              <Copy className="w-3 h-3" />
+                              <span>Salin</span>
+                            </button>
+                            <ChevronRight className="w-4 h-4 text-slate-400" />
+                          </div>
                         </div>
                       </div>
                     ))}

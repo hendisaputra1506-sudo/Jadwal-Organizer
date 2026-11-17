@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Filter,
   MessageCircle,
+  Copy,
 } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
@@ -226,7 +227,21 @@ export const TentativeEventsPage: React.FC = () => {
                       : 'Menunggu konfirmasi'}
                   </span>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    {/* Quick Duplicate Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/events/new?duplicateFrom=${event.id}`);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-clay-sm bg-slate-100 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 text-slate-600 hover:text-blue-700 text-xs font-bold transition-all cursor-pointer active:scale-95"
+                      title="Duplikat Kegiatan Ini"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Duplikat</span>
+                    </button>
+
                     {/* Quick WhatsApp Follow-up Button */}
                     <button
                       type="button"

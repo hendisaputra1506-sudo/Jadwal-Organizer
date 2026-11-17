@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
+import { useParams, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import {
   Calendar,
   Clock,
@@ -13,6 +13,7 @@ import {
   Save,
   Check,
   PackageCheck,
+  Copy,
 } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
@@ -37,7 +38,10 @@ interface OutletContextType {
 
 export const EventFormPage: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
+  const [searchParams] = useSearchParams();
+  const duplicateFromId = searchParams.get('duplicateFrom');
   const isEditMode = Boolean(id);
+  const isDuplicateMode = !isEditMode && Boolean(duplicateFromId);
   const { onToggleSidebar } = useOutletContext<OutletContextType>();
   const { success, error: toastError, warning } = useToast();
   const navigate = useNavigate();
@@ -45,6 +49,9 @@ export const EventFormPage: React.FC = () => {
   // Master Data
   const [categories, setCategories] = useState<Category[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+
+  // Source name when duplicating
+  const [sourceEventName, setSourceEventName] = useState<string>('');
 
   // Form State
   const [name, setName] = useState<string>('');
@@ -85,8 +92,8 @@ export const EventFormPage: React.FC = () => {
         ]);
         if (catRes.success) {
           setCategories(catRes.data);
-          if (!isEditMode && catRes.data.length > 0) {
-            setCategoryId(catRes.data[0].id);
+          if (!isEditMode && !isDuplicateMode && catRes.data.length > 0) {
+            setCategoryId((prev) => prev || catRes.data[0].id);
           }
         }
         if (locRes.success) setLocations(locRes.data);
@@ -95,21 +102,29 @@ export const EventFormPage: React.FC = () => {
       }
     }
     loadMeta();
-  }, [isEditMode]);
+  }, [isEditMode, isDuplicateMode]);
 
-  // Load Event Data if in Edit Mode
+  // Load Event Data if in Edit Mode OR Duplicate Mode
   useEffect(() => {
-    if (!isEditMode || !id) return;
+    const targetEventId = isEditMode ? id : duplicateFromId;
+    if (!targetEventId) return;
 
     async function loadEvent() {
       setIsLoadingData(true);
       try {
-        const res: any = await api.get(`/events/${id}`);
+        const res: any = await api.get(`/events/${targetEventId}`);
         if (res.success && res.data) {
           const ev = res.data;
+          setSourceEventName(ev.name);
           setName(ev.name);
           setCategoryId(ev.category_id);
-          setStatus(ev.status);
+
+          if (isDuplicateMode && (ev.status === 'COMPLETED' || ev.status === 'CANCELLED')) {
+            setStatus(ev.date_precision === 'EXACT' ? 'CONFIRMED' : 'WAITING_CONFIRMATION');
+          } else {
+            setStatus(ev.status);
+          }
+
           setDatePrecision(ev.date_precision);
           if (ev.event_date) setEventDate(ev.event_date.split('T')[0]);
           setStartTime(ev.start_time || '09:00');
@@ -135,7 +150,7 @@ export const EventFormPage: React.FC = () => {
     }
 
     loadEvent();
-  }, [isEditMode, id, toastError]);
+  }, [isEditMode, isDuplicateMode, id, duplicateFromId, toastError]);
 
   // Real-time Conflict Check
   const runConflictCheck = useCallback(async () => {
@@ -288,8 +303,20 @@ export const EventFormPage: React.FC = () => {
     <div>
       <Header
         onToggleSidebar={onToggleSidebar}
-        title={isEditMode ? 'Ubah Kegiatan' : 'Tambah Kegiatan Baru'}
-        subtitle={isEditMode ? name : 'Kelola jadwal kegiatan kampus dan kebutuhan persiapannya'}
+        title={
+          isEditMode
+            ? 'Ubah Kegiatan'
+            : isDuplicateMode
+            ? 'Duplikat Kegiatan'
+            : 'Tambah Kegiatan Baru'
+        }
+        subtitle={
+          isEditMode
+            ? name
+            : isDuplicateMode
+            ? `Menyalin rincian dari: ${sourceEventName || name}`
+            : 'Kelola jadwal kegiatan kampus dan kebutuhan persiapannya'
+        }
       />
 
       <div className="p-3.5 sm:p-8 max-w-4xl mx-auto space-y-4 sm:space-y-6">
@@ -301,6 +328,26 @@ export const EventFormPage: React.FC = () => {
           <ChevronLeft className="w-4 h-4" />
           <span>Kembali</span>
         </button>
+
+        {/* Duplicate Mode Banner */}
+        {isDuplicateMode && (
+          <div className="p-3.5 sm:p-4 rounded-clay bg-blue-50/90 border border-blue-200 text-blue-950 shadow-clay-sm flex items-start gap-3">
+            <div className="w-9 h-9 rounded-clay-sm bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-600 flex-shrink-0 mt-0.5">
+              <Copy className="w-4 h-4" />
+            </div>
+            <div className="space-y-1 text-xs">
+              <p className="font-bold text-sm text-blue-900">
+                Mode Duplikat Kegiatan
+              </p>
+              <p className="text-blue-800 leading-relaxed">
+                Seluruh rincian kategori, jam pelaksanaan, deskripsi, dan daftar kebutuhan dari kegiatan{' '}
+                <strong className="font-bold">&ldquo;{sourceEventName || name}&rdquo;</strong> telah
+                disalin otomatis. Silakan sesuaikan nama kegiatan/sekolah, tanggal, lokasi, atau
+                narahubung sebelum menekan tombol <strong>Simpan</strong>.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Real-time Conflict Warning Notice (Does not block save!) */}
         {conflictReport?.hasConflict && (
