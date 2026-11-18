@@ -40,14 +40,15 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0F1E36] via-[#1E3A8A] to-[#2563EB] flex flex-col items-center justify-center p-4 relative overflow-hidden selection:bg-blue-500 selection:text-white">
-      {/* Ambient Soft Blue Glows */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-sky-400/20 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-blue-400/25 blur-3xl pointer-events-none" />
+      {/* Ambient Animated Soft Blue Glows */}
+      <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-sky-400/25 blur-3xl pointer-events-none animate-ambient" />
+      <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-blue-400/25 blur-3xl pointer-events-none animate-ambient-reverse" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] rounded-full bg-indigo-400/10 blur-3xl pointer-events-none animate-ambient" />
 
-      <div className="w-full max-w-md relative z-10">
+      <div className="w-full max-w-md relative z-10 animate-page-enter">
         {/* App Branding */}
         <div className="text-center mb-5 sm:mb-6">
-          <div className="inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-clay bg-white p-2.5 sm:p-3.5 shadow-2xl mb-3 sm:mb-4 border-2 border-white/80">
+          <div className="inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-clay bg-white p-2.5 sm:p-3.5 shadow-2xl mb-3 sm:mb-4 border-2 border-white/80 animate-subtle-bob">
             <img src={logoUtd} alt="Logo UTD" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
@@ -59,7 +60,7 @@ export const LoginPage: React.FC = () => {
         </div>
 
         {/* Login Clay Card with UTD Brand Bar */}
-        <div className="bg-white rounded-clay-lg overflow-hidden shadow-2xl border border-white/90">
+        <div className="bg-white rounded-clay-lg overflow-hidden shadow-2xl border border-white/90 animate-modal-spring">
           <div className="utd-brand-bar" />
           <div className="p-5 sm:p-8">
             <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-1">Masuk ke Sistem</h2>
@@ -108,10 +109,10 @@ export const LoginPage: React.FC = () => {
             </div>
           </form>
 
-          {/* Development Seed Information Notice */}
-          <div className="mt-8 pt-5 border-t border-slate-100 text-center">
+          {/* Official Staff Notice */}
+          <div className="mt-7 pt-4 border-t border-slate-100 text-center">
             <p className="text-[11px] text-slate-400">
-              Pengembangan internal: Akun default pengujian tercantum pada dokumentasi development.
+              Hubungi Administrator Kampus apabila lupa kata sandi atau membutuhkan akun staf baru.
             </p>
           </div>
           </div>

@@ -24,10 +24,10 @@ export const Tabs: React.FC<TabsProps> = ({ tabs, activeTab, onChange, className
             key={tab.id}
             type="button"
             onClick={() => onChange(tab.id)}
-            className={`inline-flex flex-shrink-0 items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 text-xs font-semibold rounded-xl transition-all duration-150 cursor-pointer whitespace-nowrap ${
+            className={`inline-flex flex-shrink-0 items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 text-xs font-semibold rounded-xl transition-all duration-200 active:scale-95 cursor-pointer whitespace-nowrap ${
               isActive
-                ? 'bg-white text-blue-700 shadow-clay-sm font-bold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
+                ? 'bg-white text-blue-700 shadow-clay-sm font-bold scale-[1.01]'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
             }`}
           >
             {tab.icon && <span>{tab.icon}</span>}

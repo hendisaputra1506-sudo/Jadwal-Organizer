@@ -241,11 +241,11 @@ export const CalendarPage: React.FC = () => {
                   return (
                     <div
                       key={idx}
-                      className={`min-h-[110px] p-2 rounded-clay-sm border flex flex-col transition-all ${
+                      className={`min-h-[110px] p-2 rounded-clay-sm border flex flex-col transition-all duration-200 ${
                         cell.isToday
                           ? 'bg-blue-50/70 border-blue-300 ring-2 ring-blue-100 shadow-sm'
                           : cell.isCurrentMonth
-                          ? 'bg-slate-50/50 border-slate-200/80 hover:bg-slate-50'
+                          ? 'bg-slate-50/50 border-slate-200/80 hover:bg-white hover:border-blue-200 hover:shadow-clay-sm'
                           : 'bg-slate-100/40 border-slate-100 opacity-40'
                       }`}
                     >
@@ -273,7 +273,7 @@ export const CalendarPage: React.FC = () => {
                               backgroundColor: `${ev.category.color}15`,
                               borderLeftColor: ev.category.color,
                             }}
-                            className="px-1.5 py-1 text-[11px] font-semibold text-slate-800 rounded border-l-2 truncate cursor-pointer hover:opacity-85 transition-opacity"
+                            className="px-1.5 py-1 text-[11px] font-semibold text-slate-800 rounded border-l-2 truncate cursor-pointer hover:translate-x-0.5 hover:shadow-xs transition-all"
                             title={`${ev.name} (${ev.start_time || 'Sepanjang Hari'})`}
                           >
                             <span className="truncate">{ev.name}</span>

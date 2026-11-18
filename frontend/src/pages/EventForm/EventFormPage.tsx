@@ -31,6 +31,7 @@ import {
 } from '../../types/index';
 import { useToast } from '../../context/ToastContext';
 import { EventAttachments } from '../../components/events/EventAttachments';
+import { fireMicroConfetti } from '../../utils/confetti';
 
 interface OutletContextType {
   onToggleSidebar: () => void;
@@ -279,6 +280,9 @@ export const EventFormPage: React.FC = () => {
     try {
       if (isEditMode) {
         const res: any = await api.put(`/events/${id}`, payload);
+        if (payload.status === 'CONFIRMED' || payload.status === 'COMPLETED') {
+          fireMicroConfetti();
+        }
         success('Perubahan kegiatan berhasil disimpan.');
         if (res.conflictWarning) {
           warning('Catatan: Masih terdapat potensi atau peringatan bentrok pada kegiatan ini.');
@@ -286,6 +290,7 @@ export const EventFormPage: React.FC = () => {
         navigate(`/events/${id}`);
       } else {
         const res: any = await api.post('/events', payload);
+        fireMicroConfetti();
         success('Kegiatan baru berhasil ditambahkan.');
         if (res.conflictWarning) {
           warning('Catatan: Peringatan bentrok terdeteksi untuk kegiatan yang baru disimpan.');

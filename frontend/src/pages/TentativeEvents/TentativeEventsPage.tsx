@@ -159,11 +159,12 @@ export const TentativeEventsPage: React.FC = () => {
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-            {filteredEvents.map((event) => (
+            {filteredEvents.map((event, idx) => (
               <div
                 key={event.id}
                 onClick={() => navigate(`/events/${event.id}`)}
-                className="bg-white rounded-clay p-4 sm:p-5 border border-white/90 shadow-clay-card hover:shadow-clay-card-hover hover:-translate-y-0.5 transition-all cursor-pointer flex flex-col justify-between space-y-3 sm:space-y-4 group"
+                style={{ ['--stagger-i' as any]: Math.min(idx, 10) }}
+                className="bg-white rounded-clay p-4 sm:p-5 border border-white/90 shadow-clay-card interactive-card animate-card-reveal cursor-pointer flex flex-col justify-between space-y-3 sm:space-y-4 group"
               >
                 <div>
                   {/* Top Bar: Badges & Overdue Alert */}

@@ -79,6 +79,191 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Interactive Tactile Card Hover & Lift */
+  .interactive-card {
+    transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.2s ease;
+  }
+  .interactive-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 28px -6px rgba(37, 99, 235, 0.14), 0 6px 12px -4px rgba(15, 23, 42, 0.05);
+  }
+  .interactive-card:active {
+    transform: translateY(-1px) scale(0.992);
+  }
+}
+
+/* ============================================================================
+   MODERN MOTION & MICRO-INTERACTION KEYFRAMES (GPU-Accelerated)
+   ============================================================================ */
+@keyframes pageEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes backdropFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSpring {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.95);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.008);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toastSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(28px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes toastProgress {
+  0% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes ambientFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(18px, -14px, 0) scale(1.08);
+  }
+}
+
+@keyframes ambientFloatReverse {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-16px, 14px, 0) scale(1.06);
+  }
+}
+
+@keyframes subtleBob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.75;
+  }
+  70% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+
+.animate-page-enter {
+  animation: pageEnter 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-card-reveal {
+  animation: cardReveal 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--stagger-i, 0) * 45ms);
+}
+
+.animate-backdrop-in {
+  animation: backdropFadeIn 0.2s ease-out both;
+}
+
+.animate-modal-spring {
+  animation: modalSpring 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-toast-in {
+  animation: toastSlideIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-toast-progress {
+  transform-origin: left center;
+  animation: toastProgress 4.5s linear forwards;
+}
+
+.animate-ambient {
+  animation: ambientFloat 11s ease-in-out infinite;
+}
+
+.animate-ambient-reverse {
+  animation: ambientFloatReverse 14s ease-in-out infinite;
+}
+
+.animate-subtle-bob {
+  animation: subtleBob 4.5s ease-in-out infinite;
+}
+
+.animate-pulse-ring {
+  animation: pulseRing 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-enter,
+  .animate-card-reveal,
+  .animate-backdrop-in,
+  .animate-modal-spring,
+  .animate-toast-in,
+  .animate-ambient,
+  .animate-ambient-reverse,
+  .animate-subtle-bob,
+  .animate-pulse-ring {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 /* Dedicated Print Styles for A4 Landscape */

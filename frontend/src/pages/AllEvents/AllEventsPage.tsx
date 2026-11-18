@@ -491,10 +491,11 @@ export const AllEventsPage: React.FC = () => {
 
             {/* Mobile Cards View (Grouped by Date) */}
             <div className="md:hidden space-y-3.5">
-              {groupedEvents.map((group) => (
+              {groupedEvents.map((group, gIdx) => (
                 <div
                   key={group.dateKey}
-                  className="bg-white rounded-clay border border-slate-200 shadow-clay-sm overflow-hidden"
+                  style={{ ['--stagger-i' as any]: Math.min(gIdx, 10) }}
+                  className="bg-white rounded-clay border border-slate-200 shadow-clay-sm overflow-hidden animate-card-reveal"
                 >
                   {/* Date Header Strip */}
                   <div className="bg-slate-50/90 border-b border-slate-200/80 px-4 py-2.5 flex items-center justify-between">

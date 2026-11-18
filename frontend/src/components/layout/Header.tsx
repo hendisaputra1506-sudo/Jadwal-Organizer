@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Menu, Plus, KeyRound } from 'lucide-react';
+import { Menu, Plus, KeyRound, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { Button } from '../common/Button';
 import { ChangePasswordModal } from '../auth/ChangePasswordModal';
 
@@ -18,14 +17,17 @@ export const Header: React.FC<HeaderProps> = ({
   subtitle,
   action,
 }) => {
-  const { isAdmin } = useAuth();
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+
+  const openGlobalSearch = () => {
+    window.dispatchEvent(new CustomEvent('open-command-search'));
+  };
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs no-print">
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-xs no-print">
         <div className="utd-brand-bar" />
-        <div className="px-3.5 sm:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-2.5 sm:gap-4">
+        <div className="px-3.5 sm:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <button
               onClick={onToggleSidebar}
@@ -46,17 +48,33 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            {/* Global Command Search Trigger (Ctrl+K) */}
+            <button
+              type="button"
+              onClick={openGlobalSearch}
+              title="Pencarian Kilat Jadwal & Sekolah (Ctrl+K)"
+              className="group p-2 sm:px-3 sm:py-1.5 rounded-clay-sm bg-slate-50 hover:bg-blue-50/80 border border-slate-200/90 hover:border-blue-300 text-slate-500 hover:text-blue-700 shadow-xs active:scale-95 transition-all cursor-pointer flex items-center gap-2 text-xs font-medium"
+            >
+              <Search className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+              <span className="hidden md:inline text-slate-500 group-hover:text-blue-700">
+                Cari cepat...
+              </span>
+              <kbd className="hidden md:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-semibold text-slate-400 group-hover:text-blue-600 bg-white border border-slate-200 group-hover:border-blue-200 rounded">
+                Ctrl K
+              </kbd>
+            </button>
+
             {action}
 
             {/* Quick Change Password Button */}
             <button
               onClick={() => setIsChangePasswordOpen(true)}
               title="Ubah Kata Sandi Akun"
-              className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-clay-sm bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 shadow-xs active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+              className="group p-2 sm:px-3 sm:py-1.5 rounded-clay-sm bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 shadow-xs active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
             >
-              <KeyRound className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600" />
-              <span className="hidden sm:inline">Ganti Sandi</span>
+              <KeyRound className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 transition-colors" />
+              <span className="hidden xl:inline">Ganti Sandi</span>
             </button>
 
             {!action && (

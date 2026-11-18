@@ -23,6 +23,7 @@ import {
 import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
 import { CategoryBadge, StatusBadge } from '../../components/common/Badge';
+import { AnimatedCounter } from '../../components/common/AnimatedCounter';
 import { CardSkeleton } from '../../components/feedback/Skeleton';
 import { WhatsAppSummaryModal } from '../../components/events/WhatsAppSummaryModal';
 import { api } from '../../services/api';
@@ -247,14 +248,28 @@ export const WeeklySchedulePage: React.FC = () => {
     return map;
   }, [daysOfWeek, eventsByDay, filterEvent]);
 
-  // Derive Hero Event for Executive Bento Card
-  const { heroEvent, heroEventBadge } = useMemo(() => {
-    const todayStr = formatDateYMD(new Date());
+  // Derive Hero Event & Live Countdown for Executive Bento Card
+  const { heroEvent, heroEventBadge, heroCountdownLabel } = useMemo(() => {
+    const today = new Date();
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayStr = formatDateYMD(today);
     const todayEvents = eventsByDay[todayStr] || [];
 
-    const now = new Date();
+    const getCountdown = (dateStr?: string | null) => {
+      if (!dateStr) return '';
+      const [y, m, d] = dateStr.split('T')[0].split('-').map(Number);
+      if (!y || !m || !d) return '';
+      const target = new Date(y, m - 1, d);
+      const diff = Math.round((target.getTime() - todayDateOnly.getTime()) / (1000 * 60 * 60 * 24));
+      if (diff === 0) return 'Hari Ini';
+      if (diff === 1) return 'Besok (H-1)';
+      if (diff === 2) return 'Lusa (H-2)';
+      if (diff > 2) return `${diff} Hari Lagi (H-${diff})`;
+      return '';
+    };
+
     const currentHours =
-      String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      String(today.getHours()).padStart(2, '0') + ':' + String(today.getMinutes()).padStart(2, '0');
 
     if (todayEvents.length > 0) {
       // 1. Ongoing right now?
@@ -267,7 +282,7 @@ export const WeeklySchedulePage: React.FC = () => {
           e.end_time >= currentHours
       );
       if (ongoing) {
-        return { heroEvent: ongoing, heroEventBadge: 'Sedang Berlangsung' };
+        return { heroEvent: ongoing, heroEventBadge: 'Sedang Berlangsung', heroCountdownLabel: 'Live Sekarang' };
       }
 
       // 2. Next upcoming event today?
@@ -275,11 +290,11 @@ export const WeeklySchedulePage: React.FC = () => {
         (e) => !e.is_all_day && e.start_time && e.start_time > currentHours
       );
       if (nextUpcoming) {
-        return { heroEvent: nextUpcoming, heroEventBadge: 'Agenda Berikutnya' };
+        return { heroEvent: nextUpcoming, heroEventBadge: 'Agenda Berikutnya', heroCountdownLabel: 'Hari Ini' };
       }
 
       // 3. Fallback to first event today
-      return { heroEvent: todayEvents[0], heroEventBadge: 'Agenda Hari Ini' };
+      return { heroEvent: todayEvents[0], heroEventBadge: 'Agenda Hari Ini', heroCountdownLabel: 'Hari Ini' };
     }
 
     // If no events today, find nearest upcoming event this week
@@ -287,10 +302,14 @@ export const WeeklySchedulePage: React.FC = () => {
       (e) => e.event_date && e.event_date.split('T')[0] >= todayStr
     );
     if (upcomingThisWeek) {
-      return { heroEvent: upcomingThisWeek, heroEventBadge: 'Agenda Mendatang Pekan Ini' };
+      return {
+        heroEvent: upcomingThisWeek,
+        heroEventBadge: 'Agenda Terdekat Pekan Ini',
+        heroCountdownLabel: getCountdown(upcomingThisWeek.event_date),
+      };
     }
 
-    return { heroEvent: null, heroEventBadge: '' };
+    return { heroEvent: null, heroEventBadge: '', heroCountdownLabel: '' };
   }, [eventsByDay, events]);
 
   const totalFilteredEvents = useMemo(() => {
@@ -495,20 +514,28 @@ export const WeeklySchedulePage: React.FC = () => {
         {/* BENTO ROW 2: Executive Focus & Operational Telemetry Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
           {/* HERO CARD (Col Span 7): Agenda Prioritas Hari Ini */}
-          <div className="lg:col-span-7 bg-gradient-to-br from-[#1E3A8A] via-[#2563EB] to-[#3B82F6] text-white rounded-clay p-5 sm:p-6 lg:p-7 shadow-clay-card border border-blue-400/25 relative overflow-hidden flex flex-col justify-between">
-            {/* Ambient Background Accent */}
-            <div className="absolute -top-12 -right-12 w-48 h-48 bg-sky-300/20 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -bottom-10 -left-10 w-44 h-44 bg-blue-300/20 rounded-full blur-2xl pointer-events-none" />
+          <div className="lg:col-span-7 bg-gradient-to-br from-[#1E3A8A] via-[#2563EB] to-[#3B82F6] text-white rounded-clay p-5 sm:p-6 lg:p-7 shadow-clay-card border border-blue-400/25 relative overflow-hidden flex flex-col justify-between group">
+            {/* Ambient Animated Background Accents */}
+            <div className="absolute -top-12 -right-12 w-52 h-52 bg-sky-300/25 rounded-full blur-2xl pointer-events-none animate-ambient" />
+            <div className="absolute -bottom-12 -left-10 w-48 h-48 bg-indigo-300/20 rounded-full blur-2xl pointer-events-none animate-ambient-reverse" />
 
             {heroEvent ? (
               <div className="relative z-10 space-y-4">
                 {/* Top Badge & Header */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-bold px-2.5 py-1 rounded-full shadow-xs">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="flex items-center gap-2 bg-emerald-500/20 text-emerald-200 border border-emerald-400/35 text-xs font-bold px-2.5 py-1 rounded-full shadow-xs">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-pulse-ring absolute inline-flex h-full w-full rounded-full bg-emerald-400" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                      </span>
                       {heroEventBadge}
                     </span>
+                    {heroCountdownLabel && (
+                      <span className="text-[11px] font-extrabold bg-white/15 text-white border border-white/25 px-2.5 py-0.5 rounded-full backdrop-blur-xs">
+                        {heroCountdownLabel}
+                      </span>
+                    )}
                     <span className="text-xs text-blue-200 font-medium">
                       {heroEvent.event_date ? heroEvent.event_date.split('T')[0] : ''}
                     </span>
@@ -608,14 +635,14 @@ export const WeeklySchedulePage: React.FC = () => {
           <div className="lg:col-span-5 flex flex-col justify-between gap-3 sm:gap-3.5">
             {/* Tile 1: Status Konflik & Keamanan Jadwal */}
             {definiteConflictCount > 0 ? (
-              <div className="p-4 rounded-clay bg-rose-50 border border-rose-300 text-rose-950 shadow-clay-sm flex items-center justify-between gap-3">
+              <div className="p-4 rounded-clay bg-rose-50 border border-rose-300 text-rose-950 shadow-clay-sm interactive-card flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center flex-shrink-0 text-rose-600">
                     <AlertCircle className="w-5 h-5 animate-pulse" />
                   </div>
                   <div className="min-w-0">
                     <h4 className="text-xs sm:text-sm font-black text-rose-900 leading-tight">
-                      {definiteConflictCount} Potensi Bentrok Jadwal
+                      <AnimatedCounter value={definiteConflictCount} /> Potensi Bentrok Jadwal
                     </h4>
                     <p className="text-[11px] text-rose-700 truncate mt-0.5">
                       Ada jadwal bersamaan di lokasi yang sama
@@ -625,13 +652,13 @@ export const WeeklySchedulePage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/events')}
-                  className="text-xs font-black text-rose-700 bg-rose-200/80 hover:bg-rose-300/80 px-3 py-1.5 rounded-xl transition-all flex-shrink-0 cursor-pointer"
+                  className="text-xs font-black text-rose-700 bg-rose-200/80 hover:bg-rose-300/80 active:scale-95 px-3 py-1.5 rounded-xl transition-all flex-shrink-0 cursor-pointer"
                 >
                   Cek &rarr;
                 </button>
               </div>
             ) : (
-              <div className="p-4 rounded-clay bg-emerald-50/90 border border-emerald-200/80 text-emerald-950 shadow-clay-sm flex items-center justify-between gap-3">
+              <div className="p-4 rounded-clay bg-emerald-50/90 border border-emerald-200/80 text-emerald-950 shadow-clay-sm interactive-card flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center flex-shrink-0 text-emerald-600">
                     <ShieldCheck className="w-5 h-5" />
@@ -653,14 +680,14 @@ export const WeeklySchedulePage: React.FC = () => {
 
             {/* Tile 2: Status Tentatif & Konfirmasi */}
             {tentativeCount > 0 ? (
-              <div className="p-4 rounded-clay bg-amber-50/90 border border-amber-200/80 text-amber-950 shadow-clay-sm flex items-center justify-between gap-3">
+              <div className="p-4 rounded-clay bg-amber-50/90 border border-amber-200/80 text-amber-950 shadow-clay-sm interactive-card flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center flex-shrink-0 text-amber-600">
                     <AlertTriangle className="w-5 h-5" />
                   </div>
                   <div className="min-w-0">
                     <h4 className="text-xs sm:text-sm font-black text-amber-900 leading-tight">
-                      {tentativeCount} Kegiatan Tentatif
+                      <AnimatedCounter value={tentativeCount} /> Kegiatan Tentatif
                     </h4>
                     <p className="text-[11px] text-amber-700 truncate mt-0.5">
                       Menunggu konfirmasi tanggal/ruangan pasti
@@ -670,13 +697,13 @@ export const WeeklySchedulePage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/tentative')}
-                  className="text-xs font-black text-amber-800 bg-amber-200/80 hover:bg-amber-300/80 px-3 py-1.5 rounded-xl transition-all flex-shrink-0 cursor-pointer"
+                  className="text-xs font-black text-amber-800 bg-amber-200/80 hover:bg-amber-300/80 active:scale-95 px-3 py-1.5 rounded-xl transition-all flex-shrink-0 cursor-pointer"
                 >
                   Tinjau &rarr;
                 </button>
               </div>
             ) : (
-              <div className="p-4 rounded-clay bg-white border border-slate-200/80 text-slate-800 shadow-clay-sm flex items-center justify-between gap-3">
+              <div className="p-4 rounded-clay bg-white border border-slate-200/80 text-slate-800 shadow-clay-sm interactive-card flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0 text-slate-600">
                     <CheckCircle2 className="w-5 h-5 text-emerald-600" />
@@ -695,14 +722,15 @@ export const WeeklySchedulePage: React.FC = () => {
             )}
 
             {/* Tile 3: Ringkasan Aktivitas & Ruangan Terpakai */}
-            <div className="p-4 rounded-clay bg-white border border-slate-200/80 shadow-clay-sm flex items-center justify-between gap-2">
+            <div className="p-4 rounded-clay bg-white border border-slate-200/80 shadow-clay-sm interactive-card flex items-center justify-between gap-2">
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
                   <Building2 className="w-3.5 h-3.5 text-blue-600" />
                   <span>Keterisian Kampus</span>
                 </div>
                 <div className="text-lg sm:text-xl font-black text-utd-navy-900">
-                  {uniqueRoomsCount} <span className="text-xs font-semibold text-slate-500">Ruangan Aktif</span>
+                  <AnimatedCounter value={uniqueRoomsCount} />{' '}
+                  <span className="text-xs font-semibold text-slate-500">Lokasi Aktif</span>
                 </div>
               </div>
 
@@ -714,7 +742,8 @@ export const WeeklySchedulePage: React.FC = () => {
                   <span>Total Agenda</span>
                 </div>
                 <div className="text-lg sm:text-xl font-black text-blue-700">
-                  {events.length} <span className="text-xs font-semibold text-slate-500">Kegiatan</span>
+                  <AnimatedCounter value={events.length} />{' '}
+                  <span className="text-xs font-semibold text-slate-500">Kegiatan</span>
                 </div>
               </div>
             </div>
@@ -963,14 +992,15 @@ export const WeeklySchedulePage: React.FC = () => {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                      {dayEvents.map((event) => (
+                      {dayEvents.map((event, evIdx) => (
                         <div
                           key={event.id}
                           onClick={() => navigate(`/events/${event.id}`)}
                           style={{
                             borderLeftColor: event.category?.color || '#3B82F6',
+                            ['--stagger-i' as any]: Math.min(evIdx, 8),
                           }}
-                          className="bg-slate-50/70 hover:bg-white p-4 rounded-clay border border-slate-200/90 border-l-[4px] shadow-clay-sm hover:shadow-clay-card-hover hover:-translate-y-0.5 transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
+                          className="bg-slate-50/70 hover:bg-white p-4 rounded-clay border border-slate-200/90 border-l-[4px] shadow-clay-sm interactive-card animate-card-reveal cursor-pointer flex flex-col justify-between space-y-3 group"
                         >
                           <div className="space-y-2">
                             <div className="flex items-center justify-between gap-2">

@@ -91,10 +91,23 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           };
 
+          const getProgressColor = () => {
+            switch (toast.type) {
+              case 'success':
+                return 'bg-emerald-500';
+              case 'warning':
+                return 'bg-amber-500';
+              case 'error':
+                return 'bg-rose-500';
+              default:
+                return 'bg-blue-500';
+            }
+          };
+
           return (
             <div
               key={toast.id}
-              className={`pointer-events-auto flex items-start gap-3 p-4 rounded-clay border transition-all duration-300 animate-in fade-in slide-in-from-top-2 ${getBgStyle()}`}
+              className={`pointer-events-auto relative overflow-hidden flex items-start gap-3 p-4 rounded-clay border backdrop-blur-md animate-toast-in ${getBgStyle()}`}
             >
               <div className="mt-0.5">{getIcon()}</div>
               <div className="flex-1 text-sm">
@@ -103,10 +116,13 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               </div>
               <button
                 onClick={() => removeToast(toast.id)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg transition-colors"
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
+              <div
+                className={`absolute bottom-0 left-0 right-0 h-0.5 opacity-60 animate-toast-progress ${getProgressColor()}`}
+              />
             </div>
           );
         })}

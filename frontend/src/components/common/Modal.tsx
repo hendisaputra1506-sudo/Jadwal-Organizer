@@ -44,13 +44,13 @@ export const Modal: React.FC<ModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-6 overflow-y-auto no-print">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+        className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm animate-backdrop-in"
         onClick={onClose}
       />
 
       {/* Modal Dialog Box */}
       <div
-        className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white rounded-clay-lg border border-white/80 shadow-clay-card p-4 sm:p-6 z-10 transition-all transform animate-in zoom-in-95 duration-200`}
+        className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white rounded-clay-lg border border-white/80 shadow-clay-floating p-4 sm:p-6 z-10 animate-modal-spring`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

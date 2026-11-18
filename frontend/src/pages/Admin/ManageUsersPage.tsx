@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
+import { AnimatedCounter } from '../../components/common/AnimatedCounter';
 import { Modal } from '../../components/common/Modal';
 import { Input } from '../../components/common/Input';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
@@ -245,7 +246,7 @@ export const ManageUsersPage: React.FC = () => {
       <main className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full space-y-6">
         {/* Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white p-5 rounded-clay border border-slate-200/80 shadow-xs flex items-center gap-4">
+          <div className="bg-white p-5 rounded-clay border border-slate-200/80 shadow-xs interactive-card flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
               <Users className="w-6 h-6" />
             </div>
@@ -253,11 +254,13 @@ export const ManageUsersPage: React.FC = () => {
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Total Akun Terdaftar
               </p>
-              <h3 className="text-2xl font-extrabold text-slate-900 mt-0.5">{users.length}</h3>
+              <h3 className="text-2xl font-extrabold text-slate-900 mt-0.5">
+                <AnimatedCounter value={users.length} />
+              </h3>
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-clay border border-slate-200/80 shadow-xs flex items-center gap-4">
+          <div className="bg-white p-5 rounded-clay border border-slate-200/80 shadow-xs interactive-card flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0">
               <UserCheck className="w-6 h-6" />
             </div>
@@ -265,11 +268,13 @@ export const ManageUsersPage: React.FC = () => {
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Staf Kampus (Staff)
               </p>
-              <h3 className="text-2xl font-extrabold text-slate-900 mt-0.5">{staffCount}</h3>
+              <h3 className="text-2xl font-extrabold text-slate-900 mt-0.5">
+                <AnimatedCounter value={staffCount} />
+              </h3>
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-clay border border-slate-200/80 shadow-xs flex items-center gap-4">
+          <div className="bg-white p-5 rounded-clay border border-slate-200/80 shadow-xs interactive-card flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
               <Shield className="w-6 h-6" />
             </div>
@@ -277,7 +282,9 @@ export const ManageUsersPage: React.FC = () => {
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Administrator
               </p>
-              <h3 className="text-2xl font-extrabold text-slate-900 mt-0.5">{adminCount}</h3>
+              <h3 className="text-2xl font-extrabold text-slate-900 mt-0.5">
+                <AnimatedCounter value={adminCount} />
+              </h3>
             </div>
           </div>
         </div>
