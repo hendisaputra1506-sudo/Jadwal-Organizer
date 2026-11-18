@@ -18,8 +18,9 @@ import { ManageLocationsPage } from './pages/Admin/ManageLocationsPage';
 import { ManageUsersPage } from './pages/Admin/ManageUsersPage';
 import { LetterTemplatesPage } from './pages/Letters/LetterTemplatesPage';
 
-// Lazy-loaded Archive page (aturan performa: kode halaman arsip hanya dimuat saat menu dibuka!)
+// Lazy-loaded Archive & Guide pages (aturan performa: kode halaman hanya dimuat saat menu dibuka!)
 const ArchivePage = lazy(() => import('./pages/Archive/ArchivePage'));
+const GuidePage = lazy(() => import('./pages/Guide/GuidePage'));
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
@@ -118,6 +119,22 @@ export const App: React.FC = () => {
 
               {/* Letter Templates & Bulk Print */}
               <Route path="letters" element={<LetterTemplatesPage />} />
+
+              {/* User Guide & Feature Documentation (Lazy-loaded) */}
+              <Route
+                path="guide"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="min-h-[60vh] flex items-center justify-center">
+                        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    }
+                  >
+                    <GuidePage />
+                  </Suspense>
+                }
+              />
 
               {/* Admin Only Routes */}
               <Route

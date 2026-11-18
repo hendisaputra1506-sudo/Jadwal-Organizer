@@ -16,6 +16,7 @@ import {
   Loader2,
   CornerDownLeft,
   Archive,
+  BookOpen,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { EventItem } from '../../types/index';
@@ -83,6 +84,14 @@ const QUICK_ACTIONS = [
     path: '/print',
     icon: Printer,
     color: 'bg-slate-100 text-slate-600',
+  },
+  {
+    id: 'guide',
+    label: 'Panduan & Dokumentasi Fitur',
+    sub: 'Cara pakai jadwal, upload Drive, press release, & FAQ staf',
+    path: '/guide',
+    icon: BookOpen,
+    color: 'bg-sky-100 text-sky-600',
   },
 ];
 
