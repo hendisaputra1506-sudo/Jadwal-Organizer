@@ -24,11 +24,24 @@ export interface User {
   created_at?: string;
 }
 
+export type SlotAcceptType = 'PDF' | 'DOC' | 'ANY';
+
+export interface CategoryDocumentSlot {
+  key: string;
+  label: string;
+  accept: SlotAcceptType;
+  centralized: boolean;
+  centralFolderName?: string;
+  required?: boolean;
+}
+
 export interface Category {
   id: string;
   name: string;
   color: string;
   icon?: string | null;
+  document_slots?: CategoryDocumentSlot[] | null;
+  effective_document_slots?: CategoryDocumentSlot[];
   created_at?: string;
   _count?: {
     events: number;
@@ -121,6 +134,8 @@ export interface EventAttachment {
   file_name: string;
   file_size?: number | null;
   mime_type?: string | null;
+  slot_key?: string | null;
+  slot_label?: string | null;
   drive_file_id?: string | null;
   drive_view_url: string;
   drive_download_url?: string | null;

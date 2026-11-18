@@ -4,11 +4,13 @@ import {
   getMonthly,
   getAll,
   getTentative,
+  getArchive,
   getById,
   create,
   update,
   remove,
   cancel,
+  markCompleted,
 } from '../controllers/eventController.js';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 
@@ -18,6 +20,7 @@ const router = Router();
 router.get('/weekly', authenticateToken, getWeekly);
 router.get('/monthly', authenticateToken, getMonthly);
 router.get('/tentative', authenticateToken, getTentative);
+router.get('/archive', authenticateToken, getArchive);
 router.get('/', authenticateToken, getAll);
 router.get('/:id', authenticateToken, getById);
 
@@ -26,6 +29,7 @@ router.get('/:id', authenticateToken, getById);
 // - Delete: strictly ADMIN only
 router.post('/', authenticateToken, create);
 router.put('/:id', authenticateToken, update);
+router.patch('/:id/complete', authenticateToken, markCompleted);
 router.patch('/:id/cancel', authenticateToken, cancel);
 router.delete('/:id', authenticateToken, requireAdmin, remove);
 

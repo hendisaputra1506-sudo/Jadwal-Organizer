@@ -1,5 +1,17 @@
 import { Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/db.js';
+import {
+  getEffectiveDocumentSlots,
+  normalizeDocumentSlots,
+} from '../utils/documentSlots.js';
+
+function serializeCategory<T extends { name: string; document_slots?: unknown }>(cat: T) {
+  return {
+    ...cat,
+    effective_document_slots: getEffectiveDocumentSlots(cat),
+  };
+}
 
 export async function getAllCategories(req: Request, res: Response): Promise<void> {
   try {
@@ -18,7 +30,7 @@ export async function getAllCategories(req: Request, res: Response): Promise<voi
 
     res.json({
       success: true,
-      data: categories,
+      data: categories.map((cat) => serializeCategory(cat)),
     });
   } catch (error: any) {
     console.error('Error fetching categories:', error);
@@ -28,7 +40,7 @@ export async function getAllCategories(req: Request, res: Response): Promise<voi
 
 export async function createCategory(req: Request, res: Response): Promise<void> {
   try {
-    const { name, color, icon } = req.body;
+    const { name, color, icon, document_slots } = req.body;
 
     if (!name || !name.trim()) {
       res.status(400).json({ success: false, message: 'Nama kategori wajib diisi.' });
@@ -44,18 +56,25 @@ export async function createCategory(req: Request, res: Response): Promise<void>
       return;
     }
 
+    const normalizedSlots =
+      document_slots !== undefined ? normalizeDocumentSlots(document_slots) : null;
+
     const category = await prisma.category.create({
       data: {
         name: name.trim(),
         color: color || '#3B82F6',
         icon: icon || 'Tag',
+        document_slots:
+          normalizedSlots === null
+            ? Prisma.DbNull
+            : (normalizedSlots as unknown as Prisma.InputJsonValue),
       },
     });
 
     res.status(201).json({
       success: true,
       message: 'Kategori berhasil ditambahkan.',
-      data: category,
+      data: serializeCategory(category),
     });
   } catch (error: any) {
     console.error('Error creating category:', error);
@@ -66,7 +85,7 @@ export async function createCategory(req: Request, res: Response): Promise<void>
 export async function updateCategory(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
-    const { name, color, icon } = req.body;
+    const { name, color, icon, document_slots } = req.body;
 
     if (!name || !name.trim()) {
       res.status(400).json({ success: false, message: 'Nama kategori wajib diisi.' });
@@ -85,19 +104,29 @@ export async function updateCategory(req: Request, res: Response): Promise<void>
       return;
     }
 
+    const updateData: any = {
+      name: name.trim(),
+      color: color || '#3B82F6',
+      icon: icon || 'Tag',
+    };
+
+    if (document_slots !== undefined) {
+      const normalizedSlots = normalizeDocumentSlots(document_slots);
+      updateData.document_slots =
+        normalizedSlots === null
+          ? Prisma.DbNull
+          : (normalizedSlots as unknown as Prisma.InputJsonValue);
+    }
+
     const updated = await prisma.category.update({
       where: { id },
-      data: {
-        name: name.trim(),
-        color: color || '#3B82F6',
-        icon: icon || 'Tag',
-      },
+      data: updateData,
     });
 
     res.json({
       success: true,
       message: 'Kategori berhasil diperbarui.',
-      data: updated,
+      data: serializeCategory(updated),
     });
   } catch (error: any) {
     console.error('Error updating category:', error);

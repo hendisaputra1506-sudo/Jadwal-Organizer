@@ -15,6 +15,7 @@ import {
   Sparkles,
   Loader2,
   CornerDownLeft,
+  Archive,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { EventItem } from '../../types/index';
@@ -58,6 +59,14 @@ const QUICK_ACTIONS = [
     path: '/tentative',
     icon: HelpCircle,
     color: 'bg-amber-100 text-amber-600',
+  },
+  {
+    id: 'archive',
+    label: 'Arsip & Dokumentasi',
+    sub: 'Cari kegiatan lama & cek foto/video/PDF daftar hadir',
+    path: '/archive',
+    icon: Archive,
+    color: 'bg-teal-100 text-teal-600',
   },
   {
     id: 'all-events',

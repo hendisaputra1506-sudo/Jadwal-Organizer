@@ -3,6 +3,7 @@ import path from 'path';
 import { Readable } from 'stream';
 import { drive as googleDrive, auth as googleAuth } from '@googleapis/drive';
 import { ENV } from '../config/env.js';
+import { CategoryDocumentSlot, isMediaAttachment } from '../utils/documentSlots.js';
 
 // Pastikan folder uploads lokal selalu ada untuk mode fallback development
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
@@ -235,9 +236,155 @@ async function ensureThreeLevelFolder(
   };
 }
 
+/**
+ * Memastikan folder gabungan 2 tingkat di bawah Kategori:
+ * [Folder Induk] / [Kategori] / [centralFolderName]
+ * Contoh: Sosialisasi PMB / 00 - Daftar Hadir (Semua Sekolah)
+ */
+async function ensureCentralizedCategoryFolder(
+  drive: ReturnType<typeof googleDrive>,
+  categoryName: string,
+  centralFolderName: string
+): Promise<{ targetFolderId: string; folderPathLabel: string }> {
+  const rootParentId = ENV.GOOGLE_DRIVE_FOLDER_ID.trim() || undefined;
+  const cleanCategory = sanitizeFolderName(categoryName || 'Kegiatan Kampus');
+  const categoryFolderId = await findOrCreateFolder(drive, cleanCategory, rootParentId);
+
+  const cleanCentral = sanitizeFolderName(centralFolderName || '00 - Rekap Dokumen');
+  const targetFolderId = await findOrCreateFolder(drive, cleanCentral, categoryFolderId);
+
+  return {
+    targetFolderId,
+    folderPathLabel: `${cleanCategory} / ${cleanCentral}`,
+  };
+}
+
+/**
+ * Lookup read-only untuk mendapatkan URL folder gabungan di Google Drive
+ * (tidak membuat folder kosong bila belum pernah ada upload).
+ */
+export async function getCentralizedDriveFolderUrl(
+  categoryName: string,
+  centralFolderName: string
+): Promise<string | null> {
+  if (!isGoogleDriveConfigured()) {
+    return ENV.GOOGLE_DRIVE_FOLDER_ID
+      ? `https://drive.google.com/drive/folders/${ENV.GOOGLE_DRIVE_FOLDER_ID.trim()}`
+      : null;
+  }
+
+  const rootParentId = ENV.GOOGLE_DRIVE_FOLDER_ID.trim() || undefined;
+
+  try {
+    const drive = getDriveClient();
+
+    const findExistingFolder = async (name: string, parentId?: string): Promise<string | null> => {
+      const safeName = sanitizeFolderName(name);
+      const escaped = safeName.replace(/'/g, "\\'");
+      const parentQ = parentId ? ` and '${parentId}' in parents` : '';
+      const res = await drive.files.list({
+        q: `mimeType='application/vnd.google-apps.folder' and name='${escaped}' and trashed=false${parentQ}`,
+        fields: 'files(id)',
+        spaces: 'drive',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+        pageSize: 1,
+      });
+      return res.data.files?.[0]?.id || null;
+    };
+
+    const catFolderId = await findExistingFolder(categoryName || 'Kegiatan Kampus', rootParentId);
+    if (catFolderId) {
+      const centralFolderId = await findExistingFolder(centralFolderName, catFolderId);
+      if (centralFolderId) {
+        return `https://drive.google.com/drive/folders/${centralFolderId}`;
+      }
+      return `https://drive.google.com/drive/folders/${catFolderId}`;
+    }
+
+    return rootParentId ? `https://drive.google.com/drive/folders/${rootParentId}` : null;
+  } catch (err) {
+    console.warn('Gagal lookup URL folder gabungan Drive:', err);
+    return rootParentId ? `https://drive.google.com/drive/folders/${rootParentId}` : null;
+  }
+}
+
+function formatEventDatePrefix(eventDate?: Date | string | null): string {
+  if (!eventDate) return '';
+  try {
+    if (eventDate instanceof Date) {
+      return eventDate.toISOString().split('T')[0];
+    }
+    const str = String(eventDate).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+      return str.slice(0, 10);
+    }
+    return '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Merapikan nama file untuk dokumen terpusat (misal Daftar Hadir semua sekolah)
+ * agar tidak bentrok antar sekolah dan langsung terbaca:
+ * Contoh: "2026-11-18 - SMA N 1 Tegal - Daftar Hadir.pdf"
+ */
+function buildUploadFileName(originalName: string, context?: UploadContext): string {
+  if (!context) return originalName;
+
+  const slot = context.slot;
+  const isMedia =
+    context.slotKey === 'MEDIA' ||
+    (!slot && isMediaAttachment(originalName, undefined));
+
+  if (isMedia || !slot) {
+    return originalName;
+  }
+
+  const ext = path.extname(originalName);
+  const rawBase = path.basename(originalName, ext).trim();
+
+  if (slot.centralized) {
+    const cleanCategory = sanitizeFolderName(context.categoryName || '');
+    const cleanEvent = cleanEventFolderName(context.eventName || 'Kegiatan', cleanCategory);
+    const datePrefix = formatEventDatePrefix(context.eventDate);
+
+    // Jika nama file asli sudah mengandung nama sekolah/kegiatan, pertahankan; jika tidak, tambahkan rapi
+    const lowerBase = rawBase.toLowerCase();
+    const lowerEvent = cleanEvent.toLowerCase();
+    const shortSlot = sanitizeFolderName(slot.label.replace(/\s*\(pdf\)\s*/i, '').trim());
+
+    let coreName: string;
+    if (lowerBase.includes(lowerEvent)) {
+      coreName = sanitizeFolderName(rawBase);
+    } else if (
+      /^(scan|camscanner|doc|img|document|pdf|whatsapp|file|untitled)[_\-\s\d]*$/i.test(rawBase) ||
+      rawBase.length < 4
+    ) {
+      coreName = `${cleanEvent} - ${shortSlot}`;
+    } else {
+      coreName = `${cleanEvent} - ${sanitizeFolderName(rawBase)}`;
+    }
+
+    const prefix = datePrefix ? `${datePrefix} - ` : '';
+    return `${prefix}${coreName}${ext}`.slice(0, 140);
+  }
+
+  // Slot non-terpusat (misal Akademik -> Berita Acara / Notulensi): beri prefix [Label] bila belum ada
+  const shortTag = sanitizeFolderName(slot.label.replace(/\s*\(pdf\)\s*/i, '').trim()).slice(0, 35);
+  if (rawBase.startsWith('[')) {
+    return originalName;
+  }
+  return `[${shortTag}] ${originalName}`.slice(0, 140);
+}
+
 export interface UploadContext {
   categoryName: string;
   eventName: string;
+  eventDate?: Date | string | null;
+  slot?: CategoryDocumentSlot | null;
+  slotKey?: string | null;
 }
 
 export interface UploadResult {
@@ -252,7 +399,10 @@ export interface UploadResult {
 }
 
 /**
- * Upload file ke Google Drive dengan struktur folder 3 tingkat otomatis & streaming disk (aman untuk video besar!).
+ * Upload file ke Google Drive dengan struktur folder otomatis berbasis Kategori & Slot Dokumen:
+ * - Foto/Video: [Kategori] / [Nama Kegiatan] / Dokumentasi (Foto & Video)
+ * - Slot Terpusat (misal Scan Daftar Hadir PMB): [Kategori] / [00 - Daftar Hadir (Semua Sekolah)] / YYYY-MM-DD - Sekolah - ...
+ * - Slot Dokumen Per Kegiatan (misal Akademik): [Kategori] / [Nama Kegiatan] / Dokumen Kegiatan / [Label] ...
  * Jika Google Drive belum dikonfigurasi, otomatis fallback ke Local Storage.
  */
 export async function uploadAttachment(
@@ -260,29 +410,51 @@ export async function uploadAttachment(
   context?: UploadContext
 ): Promise<UploadResult> {
   const useDrive = isGoogleDriveConfigured();
+  const finalFileName = buildUploadFileName(file.originalname, context);
 
   try {
     if (useDrive) {
       try {
         const drive = getDriveClient();
 
-        const subFolderName = resolveMediaSubfolderName(file.originalname, file.mimetype);
+        const isMedia =
+          context?.slotKey === 'MEDIA' ||
+          (!context?.slot && isMediaAttachment(file.originalname, file.mimetype));
+
         let parentFolderId: string | undefined = ENV.GOOGLE_DRIVE_FOLDER_ID.trim() || undefined;
         let folderPathLabel: string | undefined;
 
         if (context) {
-          const folderRes = await ensureThreeLevelFolder(
-            drive,
-            context.categoryName,
-            context.eventName,
-            subFolderName
-          );
-          parentFolderId = folderRes.targetFolderId;
-          folderPathLabel = folderRes.folderPathLabel;
+          if (!isMedia && context.slot?.centralized) {
+            const centralName =
+              context.slot.centralFolderName || `00 - ${context.slot.label}`;
+            const folderRes = await ensureCentralizedCategoryFolder(
+              drive,
+              context.categoryName,
+              centralName
+            );
+            parentFolderId = folderRes.targetFolderId;
+            folderPathLabel = folderRes.folderPathLabel;
+          } else {
+            const subFolderName = isMedia
+              ? 'Dokumentasi (Foto & Video)'
+              : context.slot
+              ? 'Dokumen Kegiatan'
+              : resolveMediaSubfolderName(file.originalname, file.mimetype);
+
+            const folderRes = await ensureThreeLevelFolder(
+              drive,
+              context.categoryName,
+              context.eventName,
+              subFolderName
+            );
+            parentFolderId = folderRes.targetFolderId;
+            folderPathLabel = folderRes.folderPathLabel;
+          }
         }
 
         const fileMetadata: any = {
-          name: file.originalname,
+          name: finalFileName,
           parents: parentFolderId ? [parentFolderId] : undefined,
         };
 
@@ -325,7 +497,7 @@ export async function uploadAttachment(
         });
 
         return {
-          file_name: file.originalname,
+          file_name: finalFileName,
           file_size: file.size,
           mime_type: file.mimetype,
           drive_file_id: fileId,
@@ -348,7 +520,7 @@ export async function uploadAttachment(
 
     // --- FALLBACK KE LOCAL STORAGE (Saat kredensial Google Drive belum diisi) ---
     const timestamp = Date.now();
-    const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const safeOriginalName = finalFileName.replace(/[^a-zA-Z0-9.-]/g, '_');
     const filename = `${timestamp}_${safeOriginalName}`;
     const localFilePath = path.join(UPLOAD_DIR, filename);
 
@@ -361,7 +533,7 @@ export async function uploadAttachment(
     const localUrl = `/uploads/${filename}`;
 
     return {
-      file_name: file.originalname,
+      file_name: finalFileName,
       file_size: file.size,
       mime_type: file.mimetype,
       drive_file_id: null,
@@ -381,25 +553,72 @@ export async function uploadAttachment(
   }
 }
 
+export interface DeleteAttachmentResult {
+  deletedFromDrive: boolean;
+  deletedFromLocal: boolean;
+  warning?: string;
+}
+
 /**
- * Pindahkan file ke Trash Google Drive (lebih aman agar masih bisa dipulihkan 30 hari jika terhapus tidak sengaja)
+ * Hapus berkas secara PERMANEN dari Google Drive (langsung membebaskan kuota 15 GB)
  * atau hapus file lokal jika penyimpanan lokal.
  */
 export async function deleteAttachmentFile(
   drive_file_id: string | null,
   drive_view_url: string
-): Promise<void> {
-  if (drive_file_id && isGoogleDriveConfigured()) {
+): Promise<DeleteAttachmentResult> {
+  let targetFileId = drive_file_id;
+  if (!targetFileId && drive_view_url) {
+    const m = drive_view_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (m?.[1]) targetFileId = m[1];
+  }
+
+  if (targetFileId) {
+    if (!isGoogleDriveConfigured()) {
+      return {
+        deletedFromDrive: false,
+        deletedFromLocal: false,
+        warning:
+          'Kredensial Google Drive (GOOGLE_OAUTH_*) belum terpasang pada server ini (misal backend/.env lokal), sehingga file di Google Drive belum ikut terhapus.',
+      };
+    }
+
     try {
       const drive = getDriveClient();
-      await drive.files.update({
-        fileId: drive_file_id,
-        requestBody: { trashed: true },
+      // Hapus permanen dari Google Drive agar tidak menumpuk di Trash / menghabiskan kuota 15 GB
+      await drive.files.delete({
+        fileId: targetFileId,
         supportsAllDrives: true,
       });
-      return;
+      return { deletedFromDrive: true, deletedFromLocal: false };
     } catch (err: any) {
-      console.warn(`Gagal memindahkan file Drive ke Trash (${drive_file_id}):`, err.message);
+      const status = err?.code || err?.response?.status;
+      if (status === 404) {
+        // File memang sudah tidak ada di Google Drive
+        return { deletedFromDrive: true, deletedFromLocal: false };
+      }
+
+      // Fallback ke Trash hanya jika Shared Drive melarang hard-delete (403)
+      try {
+        const drive = getDriveClient();
+        await drive.files.update({
+          fileId: targetFileId,
+          requestBody: { trashed: true },
+          supportsAllDrives: true,
+        });
+        return { deletedFromDrive: true, deletedFromLocal: false };
+      } catch (trashErr: any) {
+        console.error(
+          `❌ Gagal menghapus file dari Google Drive (${targetFileId}):`,
+          err?.message,
+          trashErr?.message
+        );
+        return {
+          deletedFromDrive: false,
+          deletedFromLocal: false,
+          warning: `Gagal menghapus file di Google Drive: ${err?.message || 'Cek izin OAuth Google Drive.'}`,
+        };
+      }
     }
   }
 
@@ -409,9 +628,12 @@ export async function deleteAttachmentFile(
     if (fs.existsSync(localFilePath)) {
       try {
         fs.unlinkSync(localFilePath);
+        return { deletedFromDrive: false, deletedFromLocal: true };
       } catch (err: any) {
         console.warn(`Gagal menghapus file lokal (${localFilePath}):`, err.message);
       }
     }
   }
+
+  return { deletedFromDrive: false, deletedFromLocal: false };
 }

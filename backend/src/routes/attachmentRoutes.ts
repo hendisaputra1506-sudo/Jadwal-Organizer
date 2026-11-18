@@ -10,6 +10,7 @@ import {
   uploadEventAttachmentsBatch,
   addExternalDriveLink,
   deleteEventAttachment,
+  getCentralizedRekap,
 } from '../controllers/attachmentController.js';
 
 const router = express.Router();
@@ -60,6 +61,9 @@ const upload = multer({
 
 // Status konfigurasi Google Drive
 router.get('/status', authenticateToken, getDriveStatus);
+
+// Rekap dokumen terpusat (misal: Scan Daftar Hadir Semua Sekolah)
+router.get('/centralized-rekap', authenticateToken, getCentralizedRekap);
 
 // List attachments kegiatan
 router.get('/event/:eventId', authenticateToken, getEventAttachments);

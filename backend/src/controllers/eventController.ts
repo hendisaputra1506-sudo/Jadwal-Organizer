@@ -3,6 +3,7 @@ import { prisma } from '../config/db.js';
 import { AuthenticatedRequest } from '../middleware/auth.js';
 import * as eventService from '../services/eventService.js';
 import { checkScheduleConflicts } from '../services/conflictService.js';
+import { deleteAttachmentFile } from '../services/googleDriveService.js';
 
 export async function getWeekly(req: Request, res: Response): Promise<void> {
   try {
@@ -63,6 +64,27 @@ export async function getTentative(req: Request, res: Response): Promise<void> {
   } catch (error: any) {
     console.error('Error on getTentative:', error);
     res.status(500).json({ success: false, message: 'Gagal mengambil kegiatan tentatif.' });
+  }
+}
+
+export async function getArchive(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await eventService.getArchivedEvents({
+      page: Number(req.query.page) || 1,
+      limit: Number(req.query.limit) || 12,
+      sort: req.query.sort === 'asc' ? 'asc' : 'desc',
+      search: req.query.search as string,
+      categoryId: req.query.categoryId as string,
+      month: req.query.month as string,
+      startDate: req.query.startDate as string,
+      endDate: req.query.endDate as string,
+      docFilter: (req.query.docFilter as any) || 'all',
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error: any) {
+    console.error('Error on getArchive:', error);
+    res.status(500).json({ success: false, message: 'Gagal mengambil arsip kegiatan.' });
   }
 }
 
@@ -307,6 +329,7 @@ export async function remove(req: AuthenticatedRequest, res: Response): Promise<
 
     const existing = await prisma.event.findUnique({
       where: { id },
+      include: { attachments: true },
     });
 
     if (!existing) {
@@ -314,7 +337,17 @@ export async function remove(req: AuthenticatedRequest, res: Response): Promise<
       return;
     }
 
-    // Soft delete
+    // Ikut bersihkan semua berkas dokumentasi/PDF milik kegiatan ini dari Google Drive
+    if (existing.attachments && existing.attachments.length > 0) {
+      for (const att of existing.attachments) {
+        await deleteAttachmentFile(att.drive_file_id, att.drive_view_url);
+      }
+      await prisma.eventAttachment.deleteMany({
+        where: { event_id: id },
+      });
+    }
+
+    // Soft delete event
     await prisma.event.update({
       where: { id },
       data: { is_deleted: true },
@@ -322,7 +355,7 @@ export async function remove(req: AuthenticatedRequest, res: Response): Promise<
 
     res.json({
       success: true,
-      message: 'Kegiatan berhasil dihapus.',
+      message: 'Kegiatan beserta lampiran dokumentasinya berhasil dihapus.',
     });
   } catch (error: any) {
     console.error('Error on remove event:', error);
@@ -360,5 +393,35 @@ export async function cancel(req: AuthenticatedRequest, res: Response): Promise<
   } catch (error: any) {
     console.error('Error cancelling event:', error);
     res.status(500).json({ success: false, message: 'Gagal membatalkan kegiatan.' });
+  }
+}
+
+export async function markCompleted(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+
+    const existing = await prisma.event.findUnique({ where: { id } });
+    if (!existing || existing.is_deleted) {
+      res.status(404).json({ success: false, message: 'Kegiatan tidak ditemukan.' });
+      return;
+    }
+
+    const updated = await prisma.event.update({
+      where: { id },
+      data: {
+        status: 'COMPLETED',
+        updated_by_id: userId,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Kegiatan berhasil ditandai Selesai.',
+      data: updated,
+    });
+  } catch (error: any) {
+    console.error('Error marking event completed:', error);
+    res.status(500).json({ success: false, message: 'Gagal menandai kegiatan selesai.' });
   }
 }

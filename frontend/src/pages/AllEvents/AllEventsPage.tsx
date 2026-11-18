@@ -13,6 +13,7 @@ import {
   Trash2,
   ChevronRight,
   Copy,
+  ArrowUpDown,
 } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
@@ -58,6 +59,7 @@ export const AllEventsPage: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedPrecision, setSelectedPrecision] = useState<string>('');
+  const [dateSort, setDateSort] = useState<'asc' | 'desc'>('asc');
 
   // Delete modal state
   const [deleteTarget, setDeleteTarget] = useState<EventItem | null>(null);
@@ -212,8 +214,16 @@ export const AllEventsPage: React.FC = () => {
       }
     });
 
+    if (dateSort === 'desc') {
+      return [...groups].sort((a, b) => {
+        if (a.isExact && !b.isExact) return -1;
+        if (!a.isExact && b.isExact) return 1;
+        return b.dateKey.localeCompare(a.dateKey);
+      });
+    }
+
     return groups;
-  }, [events]);
+  }, [events, dateSort]);
 
   return (
     <div>
@@ -245,17 +255,29 @@ export const AllEventsPage: React.FC = () => {
                 leftIcon={<Search className="w-4 h-4" />}
               />
             </div>
-            {hasActiveFilters && (
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleResetFilters}
-                leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
-                className="w-full sm:w-auto"
+                onClick={() => setDateSort((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+                leftIcon={<ArrowUpDown className="w-3.5 h-3.5 text-blue-600" />}
+                className="flex-1 sm:flex-none"
+                title="Ubah urutan tanggal kegiatan"
               >
-                Reset Filter
+                {dateSort === 'asc' ? 'Tgl: Terlama → Terbaru' : 'Tgl: Terbaru → Terlama'}
               </Button>
-            )}
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetFilters}
+                  leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
+                  className="flex-1 sm:flex-none"
+                >
+                  Reset Filter
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 pt-1 border-t border-slate-100">

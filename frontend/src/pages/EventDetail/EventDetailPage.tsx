@@ -390,6 +390,8 @@ export const EventDetailPage: React.FC = () => {
         {/* Lampiran & Dokumen Kegiatan (Google Drive) */}
         <EventAttachments
           eventId={event.id}
+          eventName={event.name}
+          category={event.category}
           initialAttachments={event.attachments}
           onAttachmentChange={fetchEvent}
         />

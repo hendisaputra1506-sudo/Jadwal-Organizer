@@ -16,6 +16,7 @@ import {
   KeyRound,
   Users,
   X,
+  Archive,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ChangePasswordModal } from '../auth/ChangePasswordModal';
@@ -51,6 +52,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       to: '/tentative',
       label: 'Kegiatan Tentatif',
       icon: <HelpCircle className="w-5 h-5" />,
+    },
+    {
+      to: '/archive',
+      label: 'Arsip & Dokumentasi',
+      icon: <Archive className="w-5 h-5" />,
     },
     {
       to: '/print',

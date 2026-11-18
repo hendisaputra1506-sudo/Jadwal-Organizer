@@ -44,12 +44,13 @@ model User {
 }
 
 model Category {
-  id         String   @id @default(cuid())
-  name       String   @unique
-  color      String   // Hex color code, e.g. #2563EB
-  icon       String?  // Optional icon name
-  created_at DateTime @default(now())
-  events     Event[]
+  id             String   @id @default(cuid())
+  name           String   @unique
+  color          String   // Hex color code, e.g. #2563EB
+  icon           String?  // Optional icon name
+  document_slots Json?    // Custom document slot rules per category (CategoryDocumentSlot[])
+  created_at     DateTime @default(now())
+  events         Event[]
 
   @@map("categories")
 }
@@ -118,12 +119,15 @@ model EventAttachment {
   file_name          String
   file_size          Int?
   mime_type          String?
+  slot_key           String?  // 'MEDIA' | slot.key (e.g. 'daftar_hadir', 'notulensi', 'OTHER')
+  slot_label         String?  // Readable snapshot label e.g. 'Scan Daftar Hadir Siswa (PDF)'
   drive_file_id      String?  // Google Drive File ID
   drive_view_url     String   // Link Google Drive preview
   drive_download_url String?  // Link Google Drive download
   created_at         DateTime @default(now())
 
   @@index([event_id])
+  @@index([slot_key])
   @@map("event_attachments")
 }
 
