@@ -4,12 +4,6 @@
  */
 export function fireMicroConfetti(): void {
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
-  if (
-    window.matchMedia &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  ) {
-    return;
-  }
 
   const colors = ['#2563EB', '#38BDF8', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'];
   const container = document.createElement('div');

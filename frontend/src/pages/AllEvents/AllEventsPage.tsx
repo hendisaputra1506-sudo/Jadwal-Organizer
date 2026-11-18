@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import {
   Search,
   Filter,
@@ -43,6 +44,7 @@ export const AllEventsPage: React.FC = () => {
   const { isAdmin } = useAuth();
   const { success, error: toastError } = useToast();
   const navigate = useNavigate();
+  const [mobileCardsRef] = useAutoAnimate();
 
   const [events, setEvents] = useState<EventItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -490,7 +492,7 @@ export const AllEventsPage: React.FC = () => {
             </div>
 
             {/* Mobile Cards View (Grouped by Date) */}
-            <div className="md:hidden space-y-3.5">
+            <div ref={mobileCardsRef} className="md:hidden space-y-3.5">
               {groupedEvents.map((group, gIdx) => (
                 <div
                   key={group.dateKey}

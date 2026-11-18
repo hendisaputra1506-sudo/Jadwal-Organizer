@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarDays, Lock, User as UserIcon } from 'lucide-react';
+import { Lock, User as UserIcon } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
+import { BorderBeam } from '../../components/common/BorderBeam';
+import { ParticlesCanvas } from '../../components/common/ParticlesCanvas';
+import { Meteors } from '../../components/common/Meteors';
 import logoUtd from '../../Logo UTD.png';
 
 export const LoginPage: React.FC = () => {
@@ -39,28 +43,53 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0F1E36] via-[#1E3A8A] to-[#2563EB] flex flex-col items-center justify-center p-4 relative overflow-hidden selection:bg-blue-500 selection:text-white">
-      {/* Ambient Animated Soft Blue Glows */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-sky-400/25 blur-3xl pointer-events-none animate-ambient" />
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-blue-400/25 blur-3xl pointer-events-none animate-ambient-reverse" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] rounded-full bg-indigo-400/10 blur-3xl pointer-events-none animate-ambient" />
+    <div className="min-h-screen bg-gradient-to-br from-[#0B172A] via-[#1E3A8A] to-[#2563EB] animate-aurora-bg flex flex-col items-center justify-center p-4 relative overflow-hidden selection:bg-blue-500 selection:text-white">
+      {/* Architectural Dot Grid Overlay */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-dot-grid opacity-55 pointer-events-none"
+        style={{
+          maskImage: 'radial-gradient(ellipse at center, black 45%, transparent 85%)',
+          WebkitMaskImage: 'radial-gradient(ellipse at center, black 45%, transparent 85%)',
+        }}
+      />
 
-      <div className="w-full max-w-md relative z-10 animate-page-enter">
+      {/* Interactive Constellation Particles + Shooting Meteors */}
+      <ParticlesCanvas count={38} color="186, 230, 253" connectLines={true} />
+      <Meteors number={12} />
+
+      {/* Ambient Animated Soft Blue Glows */}
+      <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-sky-400/30 blur-3xl pointer-events-none animate-ambient" />
+      <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-blue-400/30 blur-3xl pointer-events-none animate-ambient-reverse" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[34rem] h-[34rem] rounded-full bg-cyan-400/10 blur-3xl pointer-events-none animate-ambient" />
+
+      <div className="w-full max-w-md relative z-10">
         {/* App Branding */}
-        <div className="text-center mb-5 sm:mb-6">
-          <div className="inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-clay bg-white p-2.5 sm:p-3.5 shadow-2xl mb-3 sm:mb-4 border-2 border-white/80 animate-subtle-bob">
+        <motion.div
+          initial={{ opacity: 0, y: -22 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+          className="text-center mb-5 sm:mb-6"
+        >
+          <div className="relative inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-clay bg-white p-2.5 sm:p-3.5 shadow-2xl mb-3 sm:mb-4 border-2 border-white/80 animate-subtle-bob">
             <img src={logoUtd} alt="Logo UTD" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
             Jadwal Kegiatan Kampus UTD
           </h1>
-          <p className="text-xs sm:text-sm text-blue-100/80 mt-1 font-medium">
+          <p className="text-xs sm:text-sm text-blue-100/85 mt-1 font-medium">
             Universitas Teknologi Digital &bull; Sistem Terpadu Jadwal Bersama
           </p>
-        </div>
+        </motion.div>
 
-        {/* Login Clay Card with UTD Brand Bar */}
-        <div className="bg-white rounded-clay-lg overflow-hidden shadow-2xl border border-white/90 animate-modal-spring">
+        {/* Login Clay Card with Magic Border Beam & UTD Brand Bar */}
+        <motion.div
+          initial={{ opacity: 0, y: 26, scale: 0.94 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 240, damping: 20, delay: 0.12 }}
+          className="relative bg-white/95 backdrop-blur-md rounded-clay-lg overflow-hidden shadow-2xl border border-white/80"
+        >
+          <BorderBeam duration={5} colorFrom="#38BDF8" colorTo="#2563EB" borderWidth={3} />
           <div className="utd-brand-bar" />
           <div className="p-5 sm:p-8">
             <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-1">Masuk ke Sistem</h2>
@@ -116,7 +145,7 @@ export const LoginPage: React.FC = () => {
             </p>
           </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Footer Note */}
         <p className="text-center text-xs text-blue-200/60 mt-6">

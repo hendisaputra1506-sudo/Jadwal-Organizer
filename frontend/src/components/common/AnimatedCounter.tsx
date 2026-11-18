@@ -26,17 +26,6 @@ export const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
       return;
     }
 
-    // Respect reduced motion
-    if (
-      typeof window !== 'undefined' &&
-      window.matchMedia &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    ) {
-      setDisplayValue(endVal);
-      previousRef.current = endVal;
-      return;
-    }
-
     let rafId = 0;
     const startTime = performance.now();
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   CalendarDays,
   Calendar,
@@ -28,6 +29,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user, isAdmin, logout } = useAuth();
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const location = useLocation();
 
   const navItems = [
     {
@@ -80,12 +82,34 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     },
   ];
 
-  const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 px-3.5 py-2.5 rounded-clay-sm text-sm transition-all duration-150 ${
-      isActive
-        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold border-l-4 border-sky-300 shadow-md shadow-blue-950/20 pl-3'
-        : 'text-slate-300 hover:text-white hover:bg-white/10'
-    }`;
+  const renderNavItem = (item: { to: string; label: string; icon: React.ReactNode }) => {
+    const isActive =
+      location.pathname === item.to ||
+      (item.to !== '/weekly' && location.pathname.startsWith(`${item.to}/`));
+
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        onClick={onClose}
+        className={`relative flex items-center gap-3 px-3.5 py-2.5 rounded-clay-sm text-sm transition-colors duration-150 group ${
+          isActive ? 'text-white font-bold' : 'text-slate-300 hover:text-white hover:bg-white/10'
+        }`}
+      >
+        {isActive && (
+          <motion.span
+            layoutId="sidebar-active-pill"
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            className="absolute inset-0 rounded-clay-sm bg-gradient-to-r from-blue-600 to-blue-700 border-l-4 border-sky-300 shadow-md shadow-blue-950/30"
+          />
+        )}
+        <span className="relative z-10 transition-transform duration-200 group-hover:scale-110">
+          {item.icon}
+        </span>
+        <span className="relative z-10">{item.label}</span>
+      </NavLink>
+    );
+  };
 
   return (
     <>
@@ -139,17 +163,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 Menu Utama
               </div>
               <nav className="space-y-1">
-                {navItems.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    onClick={onClose}
-                    className={linkClass}
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </NavLink>
-                ))}
+                {navItems.map(renderNavItem)}
               </nav>
             </div>
 
@@ -161,17 +175,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   <span>Admin Panel</span>
                 </div>
                 <nav className="space-y-1">
-                  {adminNavItems.map((item) => (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      onClick={onClose}
-                      className={linkClass}
-                    >
-                      {item.icon}
-                      <span>{item.label}</span>
-                    </NavLink>
-                  ))}
+                  {adminNavItems.map(renderNavItem)}
                 </nav>
               </div>
             )}

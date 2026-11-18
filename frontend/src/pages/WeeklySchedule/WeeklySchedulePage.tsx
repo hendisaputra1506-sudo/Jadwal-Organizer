@@ -20,10 +20,17 @@ import {
   Filter,
   MessageSquareShare,
 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
 import { CategoryBadge, StatusBadge } from '../../components/common/Badge';
 import { AnimatedCounter } from '../../components/common/AnimatedCounter';
+import { BorderBeam } from '../../components/common/BorderBeam';
+import { TiltCard } from '../../components/common/TiltCard';
+import { ParticlesCanvas } from '../../components/common/ParticlesCanvas';
+import { Meteors } from '../../components/common/Meteors';
+import { LiveClockBadge } from '../../components/common/LiveClockBadge';
 import { CardSkeleton } from '../../components/feedback/Skeleton';
 import { WhatsAppSummaryModal } from '../../components/events/WhatsAppSummaryModal';
 import { api } from '../../services/api';
@@ -36,8 +43,9 @@ interface OutletContextType {
 
 export const WeeklySchedulePage: React.FC = () => {
   const { onToggleSidebar } = useOutletContext<OutletContextType>();
-  const { isAdmin } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [focusedGridRef] = useAutoAnimate();
 
   // Current selected reference date (defaults to today)
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -334,6 +342,9 @@ export const WeeklySchedulePage: React.FC = () => {
       />
 
       <div className="p-3 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-5">
+        {/* LIVE GREETING & REAL-TIME DIGITAL CLOCK */}
+        <LiveClockBadge userName={user?.name} />
+
         {/* TOP CONTROL BAR: Week Navigation & Quick Range */}
         <div className="bg-white p-3 sm:p-4 rounded-clay border border-slate-200/80 shadow-clay-card flex flex-col md:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-1.5 sm:gap-2 w-full md:w-auto justify-between md:justify-start">
@@ -431,14 +442,22 @@ export const WeeklySchedulePage: React.FC = () => {
                   onClick={() =>
                     setSelectedDayFilter((prev) => (prev === day.dateStr ? 'all' : day.dateStr))
                   }
-                  className={`flex-shrink-0 min-w-[58px] sm:min-w-0 flex-1 flex flex-col items-center justify-center p-2 sm:p-3 rounded-clay-sm transition-all text-center relative group cursor-pointer snap-start ${
+                  className={`flex-shrink-0 min-w-[58px] sm:min-w-0 flex-1 flex flex-col items-center justify-center p-2 sm:p-3 rounded-clay-sm transition-all duration-200 active:scale-95 text-center relative group cursor-pointer snap-start ${
                     isSelected
-                      ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
+                      ? 'text-white shadow-md'
                       : day.isToday
                       ? 'bg-blue-50/90 text-blue-950 border-2 border-blue-400 shadow-xs hover:bg-blue-100/70'
                       : 'bg-slate-50/90 text-slate-700 border border-slate-200/70 hover:bg-white hover:shadow-xs'
                   }`}
                 >
+                  {isSelected && (
+                    <motion.span
+                      layoutId="weekly-day-active"
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      className="absolute inset-0 rounded-clay-sm bg-gradient-to-br from-blue-600 to-indigo-600 ring-2 ring-blue-300 shadow-md"
+                    />
+                  )}
+                  <div className="relative z-10 flex flex-col items-center justify-center w-full">
                   {/* Today Badge */}
                   {day.isToday && (
                     <span
@@ -452,7 +471,7 @@ export const WeeklySchedulePage: React.FC = () => {
 
                   <span
                     className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider ${
-                      isSelected ? 'text-slate-300' : 'text-slate-500'
+                      isSelected ? 'text-blue-100' : 'text-slate-500'
                     }`}
                   >
                     {day.dayName.slice(0, 3)}
@@ -463,7 +482,7 @@ export const WeeklySchedulePage: React.FC = () => {
                     </span>
                     <span
                       className={`text-[10px] sm:text-xs ${
-                        isSelected ? 'text-slate-300' : 'text-slate-500'
+                        isSelected ? 'text-blue-100' : 'text-slate-500'
                       }`}
                     >
                       {day.monthShort}
@@ -475,7 +494,7 @@ export const WeeklySchedulePage: React.FC = () => {
                     {count === 0 ? (
                       <span
                         className={`text-[10px] font-medium ${
-                          isSelected ? 'text-slate-400' : 'text-slate-400'
+                          isSelected ? 'text-blue-200' : 'text-slate-400'
                         }`}
                       >
                         0
@@ -505,6 +524,7 @@ export const WeeklySchedulePage: React.FC = () => {
                       </>
                     )}
                   </div>
+                  </div>
                 </button>
               );
             })}
@@ -513,11 +533,19 @@ export const WeeklySchedulePage: React.FC = () => {
 
         {/* BENTO ROW 2: Executive Focus & Operational Telemetry Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
-          {/* HERO CARD (Col Span 7): Agenda Prioritas Hari Ini */}
-          <div className="lg:col-span-7 bg-gradient-to-br from-[#1E3A8A] via-[#2563EB] to-[#3B82F6] text-white rounded-clay p-5 sm:p-6 lg:p-7 shadow-clay-card border border-blue-400/25 relative overflow-hidden flex flex-col justify-between group">
+          {/* HERO CARD (Col Span 7): Agenda Prioritas Hari Ini dengan Border Beam, Partikel Interaktif & Meteors */}
+          <div className="lg:col-span-7 bg-gradient-to-br from-[#0F1E3D] via-[#1D4ED8] to-[#2563EB] animate-aurora-bg text-white rounded-clay p-5 sm:p-6 lg:p-7 shadow-clay-card border border-blue-400/35 relative overflow-hidden flex flex-col justify-between group">
+            <BorderBeam duration={5.5} colorFrom="#38BDF8" colorTo="#FFFFFF" borderWidth={3} />
+            <ParticlesCanvas count={22} color="186, 230, 253" connectLines={true} />
+            <Meteors number={8} />
+            {/* Subtle Dot Grid Pattern */}
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-dot-grid opacity-30 pointer-events-none"
+            />
             {/* Ambient Animated Background Accents */}
-            <div className="absolute -top-12 -right-12 w-52 h-52 bg-sky-300/25 rounded-full blur-2xl pointer-events-none animate-ambient" />
-            <div className="absolute -bottom-12 -left-10 w-48 h-48 bg-indigo-300/20 rounded-full blur-2xl pointer-events-none animate-ambient-reverse" />
+            <div className="absolute -top-12 -right-12 w-52 h-52 bg-sky-300/30 rounded-full blur-2xl pointer-events-none animate-ambient" />
+            <div className="absolute -bottom-12 -left-10 w-48 h-48 bg-indigo-300/25 rounded-full blur-2xl pointer-events-none animate-ambient-reverse" />
 
             {heroEvent ? (
               <div className="relative z-10 space-y-4">
@@ -870,14 +898,17 @@ export const WeeklySchedulePage: React.FC = () => {
                         <p className="text-xs font-medium">Tidak ada kegiatan</p>
                       </div>
                     ) : (
-                      dayEvents.map((event) => (
-                        <div
+                      dayEvents.map((event, evIdx) => (
+                        <TiltCard
                           key={event.id}
+                          maxTilt={9}
+                          spotlightColor={`${event.category?.color || '#3B82F6'}30`}
                           onClick={() => navigate(`/events/${event.id}`)}
                           style={{
                             borderLeftColor: event.category?.color || '#3B82F6',
+                            ['--stagger-i' as any]: Math.min(evIdx, 8),
                           }}
-                          className="bg-white p-3 rounded-clay-sm border border-slate-200/90 border-l-[3.5px] shadow-clay-sm hover:shadow-clay-card-hover hover:-translate-y-0.5 transition-all cursor-pointer space-y-2 group"
+                          className="bg-white p-3 rounded-clay-sm border border-slate-200/90 border-l-[3.5px] shadow-clay-sm hover:shadow-clay-card-hover animate-card-reveal cursor-pointer space-y-2 group"
                         >
                           {/* Time */}
                           <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
@@ -915,7 +946,7 @@ export const WeeklySchedulePage: React.FC = () => {
                             />
                             <StatusBadge status={event.status} size="sm" />
                           </div>
-                        </div>
+                        </TiltCard>
                       ))
                     )}
                   </div>
@@ -991,16 +1022,21 @@ export const WeeklySchedulePage: React.FC = () => {
                       </Button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    <div
+                      ref={focusedGridRef}
+                      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5"
+                    >
                       {dayEvents.map((event, evIdx) => (
-                        <div
+                        <TiltCard
                           key={event.id}
+                          maxTilt={7}
                           onClick={() => navigate(`/events/${event.id}`)}
+                          spotlightColor={`${event.category?.color || '#3B82F6'}2c`}
                           style={{
                             borderLeftColor: event.category?.color || '#3B82F6',
                             ['--stagger-i' as any]: Math.min(evIdx, 8),
                           }}
-                          className="bg-slate-50/70 hover:bg-white p-4 rounded-clay border border-slate-200/90 border-l-[4px] shadow-clay-sm interactive-card animate-card-reveal cursor-pointer flex flex-col justify-between space-y-3 group"
+                          className="bg-slate-50/80 hover:bg-white p-4 rounded-clay border border-slate-200/90 border-l-[4px] shadow-clay-sm hover:shadow-clay-card-hover animate-card-reveal cursor-pointer space-y-3 group"
                         >
                           <div className="space-y-2">
                             <div className="flex items-center justify-between gap-2">
@@ -1049,7 +1085,7 @@ export const WeeklySchedulePage: React.FC = () => {
                               </span>
                             </div>
                           </div>
-                        </div>
+                        </TiltCard>
                       ))}
                     </div>
                   )}

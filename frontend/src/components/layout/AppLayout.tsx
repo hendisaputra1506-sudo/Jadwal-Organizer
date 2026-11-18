@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { CommandSearchModal } from '../common/CommandSearchModal';
 
@@ -30,16 +31,22 @@ export const AppLayout: React.FC = () => {
     <div className="min-h-screen bg-background flex flex-col lg:flex-row">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main Content Area with smooth page transition */}
+      {/* Main Content Area with crisp spring page entrance */}
       <div className="flex-1 lg:pl-64 flex flex-col min-h-screen transition-all">
-        <main key={location.pathname} className="flex-1 animate-page-enter">
+        <motion.main
+          key={location.pathname}
+          initial={{ opacity: 0, y: 20, scale: 0.99 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+          className="flex-1"
+        >
           <Outlet
             context={{
               onToggleSidebar: () => setSidebarOpen((prev) => !prev),
               onOpenSearch: () => setSearchOpen(true),
             }}
           />
-        </main>
+        </motion.main>
       </div>
 
       {/* Global Command Search Palette (Ctrl+K) */}

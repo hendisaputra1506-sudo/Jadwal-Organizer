@@ -12,9 +12,10 @@ import {
   MessageCircle,
   Copy,
 } from 'lucide-react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
-import { Card } from '../../components/common/Card';
+import { TiltCard } from '../../components/common/TiltCard';
 import { CategoryBadge, StatusBadge, PrecisionBadge } from '../../components/common/Badge';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { CardSkeleton } from '../../components/feedback/Skeleton';
@@ -22,7 +23,6 @@ import { Tabs } from '../../components/common/Tabs';
 import { WhatsAppFollowUpModal } from '../../components/events/WhatsAppFollowUpModal';
 import { api } from '../../services/api';
 import { EventItem } from '../../types/index';
-import { useAuth } from '../../context/AuthContext';
 
 interface OutletContextType {
   onToggleSidebar: () => void;
@@ -30,8 +30,8 @@ interface OutletContextType {
 
 export const TentativeEventsPage: React.FC = () => {
   const { onToggleSidebar } = useOutletContext<OutletContextType>();
-  const { isAdmin } = useAuth();
   const navigate = useNavigate();
+  const [gridRef] = useAutoAnimate();
 
   const [events, setEvents] = useState<EventItem[]>([]);
   const [activeTab, setActiveTab] = useState<string>('all');
@@ -158,13 +158,15 @@ export const TentativeEventsPage: React.FC = () => {
             onAction={() => navigate('/events/new')}
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+          <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             {filteredEvents.map((event, idx) => (
-              <div
+              <TiltCard
                 key={event.id}
+                maxTilt={6}
                 onClick={() => navigate(`/events/${event.id}`)}
+                spotlightColor={`${event.category?.color || '#3B82F6'}28`}
                 style={{ ['--stagger-i' as any]: Math.min(idx, 10) }}
-                className="bg-white rounded-clay p-4 sm:p-5 border border-white/90 shadow-clay-card interactive-card animate-card-reveal cursor-pointer flex flex-col justify-between space-y-3 sm:space-y-4 group"
+                className="bg-white rounded-clay p-4 sm:p-5 border border-white/90 shadow-clay-card hover:shadow-clay-card-hover animate-card-reveal cursor-pointer space-y-3 sm:space-y-4 group"
               >
                 <div>
                   {/* Top Bar: Badges & Overdue Alert */}
@@ -263,7 +265,7 @@ export const TentativeEventsPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              </div>
+              </TiltCard>
             ))}
           </div>
         )}
