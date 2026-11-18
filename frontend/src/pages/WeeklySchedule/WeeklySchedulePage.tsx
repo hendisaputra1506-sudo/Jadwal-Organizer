@@ -26,10 +26,6 @@ import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
 import { CategoryBadge, StatusBadge } from '../../components/common/Badge';
 import { AnimatedCounter } from '../../components/common/AnimatedCounter';
-import { BorderBeam } from '../../components/common/BorderBeam';
-import { TiltCard } from '../../components/common/TiltCard';
-import { ParticlesCanvas } from '../../components/common/ParticlesCanvas';
-import { Meteors } from '../../components/common/Meteors';
 import { LiveClockBadge } from '../../components/common/LiveClockBadge';
 import { CardSkeleton } from '../../components/feedback/Skeleton';
 import { WhatsAppSummaryModal } from '../../components/events/WhatsAppSummaryModal';
@@ -533,19 +529,11 @@ export const WeeklySchedulePage: React.FC = () => {
 
         {/* BENTO ROW 2: Executive Focus & Operational Telemetry Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
-          {/* HERO CARD (Col Span 7): Agenda Prioritas Hari Ini dengan Border Beam, Partikel Interaktif & Meteors */}
-          <div className="lg:col-span-7 bg-gradient-to-br from-[#0F1E3D] via-[#1D4ED8] to-[#2563EB] animate-aurora-bg text-white rounded-clay p-5 sm:p-6 lg:p-7 shadow-clay-card border border-blue-400/35 relative overflow-hidden flex flex-col justify-between group">
-            <BorderBeam duration={5.5} colorFrom="#38BDF8" colorTo="#FFFFFF" borderWidth={3} />
-            <ParticlesCanvas count={22} color="186, 230, 253" connectLines={true} />
-            <Meteors number={8} />
-            {/* Subtle Dot Grid Pattern */}
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 bg-dot-grid opacity-30 pointer-events-none"
-            />
-            {/* Ambient Animated Background Accents */}
-            <div className="absolute -top-12 -right-12 w-52 h-52 bg-sky-300/30 rounded-full blur-2xl pointer-events-none animate-ambient" />
-            <div className="absolute -bottom-12 -left-10 w-48 h-48 bg-indigo-300/25 rounded-full blur-2xl pointer-events-none animate-ambient-reverse" />
+          {/* HERO CARD (Col Span 7): Agenda Prioritas Hari Ini (One-shot entrance, 0% idle GPU) */}
+          <div className="lg:col-span-7 bg-gradient-to-br from-[#172554] via-[#1D4ED8] to-[#2563EB] text-white rounded-clay p-5 sm:p-6 lg:p-7 shadow-clay-card border border-blue-400/30 relative overflow-hidden flex flex-col justify-between animate-card-reveal">
+            {/* Static Soft Background Accents */}
+            <div className="absolute -top-12 -right-12 w-48 h-48 bg-sky-300/20 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-10 w-44 h-44 bg-indigo-300/20 rounded-full blur-2xl pointer-events-none" />
 
             {heroEvent ? (
               <div className="relative z-10 space-y-4">
@@ -553,10 +541,7 @@ export const WeeklySchedulePage: React.FC = () => {
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="flex items-center gap-2 bg-emerald-500/20 text-emerald-200 border border-emerald-400/35 text-xs font-bold px-2.5 py-1 rounded-full shadow-xs">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-pulse-ring absolute inline-flex h-full w-full rounded-full bg-emerald-400" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
-                      </span>
+                      <span className="inline-flex rounded-full h-2 w-2 bg-emerald-400" />
                       {heroEventBadge}
                     </span>
                     {heroCountdownLabel && (
@@ -899,16 +884,14 @@ export const WeeklySchedulePage: React.FC = () => {
                       </div>
                     ) : (
                       dayEvents.map((event, evIdx) => (
-                        <TiltCard
+                        <div
                           key={event.id}
-                          maxTilt={9}
-                          spotlightColor={`${event.category?.color || '#3B82F6'}30`}
                           onClick={() => navigate(`/events/${event.id}`)}
                           style={{
                             borderLeftColor: event.category?.color || '#3B82F6',
                             ['--stagger-i' as any]: Math.min(evIdx, 8),
                           }}
-                          className="bg-white p-3 rounded-clay-sm border border-slate-200/90 border-l-[3.5px] shadow-clay-sm hover:shadow-clay-card-hover animate-card-reveal cursor-pointer space-y-2 group"
+                          className="bg-white p-3 rounded-clay-sm border border-slate-200/90 border-l-[3.5px] shadow-clay-sm interactive-card animate-card-reveal cursor-pointer space-y-2 group"
                         >
                           {/* Time */}
                           <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
@@ -946,7 +929,7 @@ export const WeeklySchedulePage: React.FC = () => {
                             />
                             <StatusBadge status={event.status} size="sm" />
                           </div>
-                        </TiltCard>
+                        </div>
                       ))
                     )}
                   </div>
@@ -1027,16 +1010,14 @@ export const WeeklySchedulePage: React.FC = () => {
                       className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5"
                     >
                       {dayEvents.map((event, evIdx) => (
-                        <TiltCard
+                        <div
                           key={event.id}
-                          maxTilt={7}
                           onClick={() => navigate(`/events/${event.id}`)}
-                          spotlightColor={`${event.category?.color || '#3B82F6'}2c`}
                           style={{
                             borderLeftColor: event.category?.color || '#3B82F6',
                             ['--stagger-i' as any]: Math.min(evIdx, 8),
                           }}
-                          className="bg-slate-50/80 hover:bg-white p-4 rounded-clay border border-slate-200/90 border-l-[4px] shadow-clay-sm hover:shadow-clay-card-hover animate-card-reveal cursor-pointer space-y-3 group"
+                          className="bg-slate-50/80 hover:bg-white p-4 rounded-clay border border-slate-200/90 border-l-[4px] shadow-clay-sm interactive-card animate-card-reveal cursor-pointer flex flex-col justify-between space-y-3 group"
                         >
                           <div className="space-y-2">
                             <div className="flex items-center justify-between gap-2">
@@ -1085,7 +1066,7 @@ export const WeeklySchedulePage: React.FC = () => {
                               </span>
                             </div>
                           </div>
-                        </TiltCard>
+                        </div>
                       ))}
                     </div>
                   )}
