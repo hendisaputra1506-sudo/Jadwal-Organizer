@@ -17,10 +17,65 @@ import backupRoutes from './routes/backupRoutes.js';
 
 const app = express();
 
+// Trust Railway / reverse proxy headers untuk rate limiting per-IP yang akurat
+app.set('trust proxy', 1);
+
 // 1. Sembunyikan header X-Powered-By untuk keamanan
 app.disable('x-powered-by');
 
-// 2. Proteksi HTTP Security Headers menggunakan Helmet
+// 2. Konfigurasi CORS (Dipasang SEBELUM rate limiter agar preflight OPTIONS selalu diizinkan)
+const isOriginAllowed = (origin: string | undefined): boolean => {
+  if (!origin) return true; // Request non-browser / server-to-server / curl
+  if (ENV.CORS_ORIGIN.trim() === '*') return true;
+
+  const originLower = origin.toLowerCase().replace(/\/+$/, '');
+  let originHost = '';
+  try {
+    originHost = new URL(originLower).hostname.toLowerCase();
+  } catch {
+    originHost = originLower;
+  }
+
+  const configuredList = ENV.CORS_ORIGIN.split(',')
+    .map((o) => o.trim().toLowerCase().replace(/^["']|["']$/g, '').replace(/\/+$/, ''))
+    .filter(Boolean);
+
+  const matchesConfigured = configuredList.some((entry) => {
+    if (entry === originLower || entry === originHost) return true;
+    try {
+      return new URL(entry).hostname.toLowerCase() === originHost;
+    } catch {
+      return false;
+    }
+  });
+
+  return (
+    matchesConfigured ||
+    originHost === 'jadwalutd.web.id' ||
+    originHost.endsWith('.jadwalutd.web.id') ||
+    originHost.endsWith('.vercel.app') ||
+    originHost === 'localhost' ||
+    originHost === '127.0.0.1'
+  );
+};
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    if (isOriginAllowed(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+// 3. Proteksi HTTP Security Headers menggunakan Helmet
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' }, // Izinkan preview berkas & uploads
@@ -29,17 +84,18 @@ app.use(
   })
 );
 
-// 3. Batasi ukuran body request (mencegah DoS payload raksasa)
+// 4. Batasi ukuran body request (mencegah DoS payload raksasa)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 4. Rate Limiting untuk proteksi API
+// 5. Rate Limiting untuk proteksi API (lewati preflight OPTIONS)
 // Pembatas umum untuk semua rute /api: maksimal 300 request per 15 menit per IP
 const generalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 300,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS',
   message: {
     success: false,
     message: 'Terlalu banyak permintaan ke server dari IP ini. Silakan coba kembali dalam beberapa menit.',
@@ -49,9 +105,10 @@ const generalApiLimiter = rateLimit({
 // Pembatas ketat khusus endpoint login untuk mencegah brute-force password guessing
 const authLoginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10, // Maksimal 10 percobaan per 15 menit
+  max: 20, // Maksimal 20 percobaan per 15 menit (aman untuk beberapa staf dalam 1 jaringan Wi-Fi kampus)
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS',
   message: {
     success: false,
     message: 'Terlalu banyak percobaan masuk yang gagal. Demi keamanan akun staf, silakan tunggu 15 menit.',
@@ -61,37 +118,6 @@ const authLoginLimiter = rateLimit({
 // Pasang Rate Limiter
 app.use('/api', generalApiLimiter);
 app.use('/api/auth/login', authLoginLimiter);
-
-// 5. Konfigurasi CORS (Mendukung Vercel, Localhost, dan konfigurasi kustom)
-const isOriginAllowed = (origin: string | undefined): boolean => {
-  if (!origin) return true; // Request non-browser / server-to-server / curl
-  if (ENV.CORS_ORIGIN === '*') return true;
-
-  const configuredList = ENV.CORS_ORIGIN.split(',').map((o) => o.trim().toLowerCase());
-  const originLower = origin.toLowerCase();
-
-  return (
-    configuredList.includes(originLower) ||
-    originLower.endsWith('.vercel.app') ||
-    originLower.includes('localhost') ||
-    originLower.includes('127.0.0.1')
-  );
-};
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (isOriginAllowed(origin)) {
-        callback(null, true);
-      } else {
-        callback(null, false);
-      }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
 
 // 6. Health Check Endpoint
 app.get('/api/health', (req, res) => {
