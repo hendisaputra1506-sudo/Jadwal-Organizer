@@ -208,14 +208,14 @@ async function findOrCreateFolder(
 }
 
 /**
- * Memastikan struktur folder 3 tingkat terbentuk rapi di Google Drive:
- * [Folder Induk] / [Kategori] / [Nama Kegiatan] / [Dokumentasi (Foto & Video) | Daftar Hadir (PDF)]
+ * Memastikan struktur folder 2 tingkat terbentuk rapi di Google Drive:
+ * [Folder Induk] / [Kategori] / [Nama Kegiatan / Sekolah]
+ * File foto, video, dan dokumen kegiatan langsung berada di folder ini tanpa sub-folder perantara.
  */
-async function ensureThreeLevelFolder(
+async function ensureEventFolder(
   drive: ReturnType<typeof googleDrive>,
   categoryName: string,
-  eventName: string,
-  subFolderName: string
+  eventName: string
 ): Promise<{ targetFolderId: string; folderPathLabel: string }> {
   const rootParentId = ENV.GOOGLE_DRIVE_FOLDER_ID.trim() || undefined;
 
@@ -227,12 +227,9 @@ async function ensureThreeLevelFolder(
   const cleanEvent = cleanEventFolderName(eventName || 'Tanpa Nama', cleanCategory);
   const eventFolderId = await findOrCreateFolder(drive, cleanEvent, categoryFolderId);
 
-  // Level 3: Sub-folder jenis berkas (Dokumentasi (Foto & Video) / Daftar Hadir (PDF))
-  const targetFolderId = await findOrCreateFolder(drive, subFolderName, eventFolderId);
-
   return {
-    targetFolderId,
-    folderPathLabel: `${cleanCategory} / ${cleanEvent} / ${subFolderName}`,
+    targetFolderId: eventFolderId,
+    folderPathLabel: `${cleanCategory} / ${cleanEvent}`,
   };
 }
 
@@ -305,6 +302,58 @@ export async function getCentralizedDriveFolderUrl(
     return rootParentId ? `https://drive.google.com/drive/folders/${rootParentId}` : null;
   } catch (err) {
     console.warn('Gagal lookup URL folder gabungan Drive:', err);
+    return rootParentId ? `https://drive.google.com/drive/folders/${rootParentId}` : null;
+  }
+}
+
+/**
+ * Lookup read-only untuk mendapatkan URL folder kegiatan di Google Drive
+ * [Folder Induk] / [Kategori] / [Nama Kegiatan / Sekolah]
+ */
+export async function getEventDriveFolderUrl(
+  categoryName: string,
+  eventName: string
+): Promise<string | null> {
+  if (!isGoogleDriveConfigured()) {
+    return ENV.GOOGLE_DRIVE_FOLDER_ID
+      ? `https://drive.google.com/drive/folders/${ENV.GOOGLE_DRIVE_FOLDER_ID.trim()}`
+      : null;
+  }
+
+  const rootParentId = ENV.GOOGLE_DRIVE_FOLDER_ID.trim() || undefined;
+
+  try {
+    const drive = getDriveClient();
+
+    const findExistingFolder = async (name: string, parentId?: string): Promise<string | null> => {
+      const safeName = sanitizeFolderName(name);
+      const escaped = safeName.replace(/'/g, "\\'");
+      const parentQ = parentId ? ` and '${parentId}' in parents` : '';
+      const res = await drive.files.list({
+        q: `mimeType='application/vnd.google-apps.folder' and name='${escaped}' and trashed=false${parentQ}`,
+        fields: 'files(id)',
+        spaces: 'drive',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+        pageSize: 1,
+      });
+      return res.data.files?.[0]?.id || null;
+    };
+
+    const cleanCategory = sanitizeFolderName(categoryName || 'Kegiatan Kampus');
+    const catFolderId = await findExistingFolder(cleanCategory, rootParentId);
+    if (catFolderId) {
+      const cleanEvent = cleanEventFolderName(eventName || 'Tanpa Nama', cleanCategory);
+      const eventFolderId = await findExistingFolder(cleanEvent, catFolderId);
+      if (eventFolderId) {
+        return `https://drive.google.com/drive/folders/${eventFolderId}`;
+      }
+      return `https://drive.google.com/drive/folders/${catFolderId}`;
+    }
+
+    return rootParentId ? `https://drive.google.com/drive/folders/${rootParentId}` : null;
+  } catch (err) {
+    console.warn('Gagal lookup URL folder kegiatan Drive:', err);
     return rootParentId ? `https://drive.google.com/drive/folders/${rootParentId}` : null;
   }
 }
@@ -436,17 +485,12 @@ export async function uploadAttachment(
             parentFolderId = folderRes.targetFolderId;
             folderPathLabel = folderRes.folderPathLabel;
           } else {
-            const subFolderName = isMedia
-              ? 'Dokumentasi (Foto & Video)'
-              : context.slot
-              ? 'Dokumen Kegiatan'
-              : resolveMediaSubfolderName(file.originalname, file.mimetype);
-
-            const folderRes = await ensureThreeLevelFolder(
+            // Struktur 2 tingkat langsung: [Kategori] / [Nama Kegiatan / Sekolah]
+            // Foto, video, dan dokumen kegiatan tersimpan langsung tanpa subfolder perantara
+            const folderRes = await ensureEventFolder(
               drive,
               context.categoryName,
-              context.eventName,
-              subFolderName
+              context.eventName
             );
             parentFolderId = folderRes.targetFolderId;
             folderPathLabel = folderRes.folderPathLabel;
