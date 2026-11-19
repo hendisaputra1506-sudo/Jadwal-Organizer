@@ -3,6 +3,7 @@ import path from 'path';
 import { Readable } from 'stream';
 import { drive as googleDrive, auth as googleAuth } from '@googleapis/drive';
 import { ENV } from '../config/env.js';
+import { prisma } from '../config/db.js';
 import { CategoryDocumentSlot, isMediaAttachment } from '../utils/documentSlots.js';
 
 // Pastikan folder uploads lokal selalu ada untuk mode fallback development
@@ -680,4 +681,168 @@ export async function deleteAttachmentFile(
   }
 
   return { deletedFromDrive: false, deletedFromLocal: false };
+}
+
+/**
+ * Diagnostik lengkap integrasi Google Drive:
+ * - Akun Google mana yang sedang aktif (email & nama)
+ * - Apakah GOOGLE_DRIVE_FOLDER_ID valid dan dapat diakses oleh akun tersebut
+ * - Posisi parent folder dari file upload terakhir
+ */
+export async function getGoogleDriveDiagnostics() {
+  const mode = getGoogleDriveAuthMode();
+  const configured = isGoogleDriveConfigured();
+  const envFolderId = ENV.GOOGLE_DRIVE_FOLDER_ID.trim();
+
+  const result: any = {
+    configured,
+    authMode: mode,
+    configuredFolderId: envFolderId || null,
+    account: null,
+    folderCheck: null,
+    alternateFolderCheck: null,
+    recentUpload: null,
+    error: null,
+  };
+
+  if (!configured) {
+    return result;
+  }
+
+  try {
+    const drive = getDriveClient();
+
+    // 1. Cek info akun Google OAuth
+    try {
+      const about = await drive.about.get({
+        fields: 'user, storageQuota',
+      });
+      result.account = {
+        email: about.data.user?.emailAddress || null,
+        displayName: about.data.user?.displayName || null,
+        limitBytes: about.data.storageQuota?.limit || null,
+        usageBytes: about.data.storageQuota?.usage || null,
+        usageInDriveBytes: about.data.storageQuota?.usageInDrive || null,
+      };
+    } catch (err: any) {
+      result.account = { error: err.message };
+    }
+
+    // 2. Cek folder yang dikonfigurasi di GOOGLE_DRIVE_FOLDER_ID
+    if (envFolderId) {
+      try {
+        const folder = await drive.files.get({
+          fileId: envFolderId,
+          fields: 'id, name, mimeType, owners, trashed, parents',
+          supportsAllDrives: true,
+        });
+        result.folderCheck = {
+          success: true,
+          id: folder.data.id,
+          name: folder.data.name,
+          mimeType: folder.data.mimeType,
+          owners: folder.data.owners?.map((o: any) => ({
+            email: o.emailAddress,
+            name: o.displayName,
+          })),
+          trashed: folder.data.trashed,
+        };
+      } catch (err: any) {
+        result.folderCheck = {
+          success: false,
+          testedId: envFolderId,
+          error: err.message,
+          code: err.code || err.status,
+        };
+      }
+
+      // Jika huruf ke-15 adalah 'F', coba cek versi 'f' (lowercase) untuk mendeteksi typo
+      if (envFolderId.includes('pbmFGVj')) {
+        const lowerVariant = envFolderId.replace('pbmFGVj', 'pbmfGVj');
+        try {
+          const altFolder = await drive.files.get({
+            fileId: lowerVariant,
+            fields: 'id, name, owners',
+            supportsAllDrives: true,
+          });
+          result.alternateFolderCheck = {
+            note: 'Varian huruf kecil f berhasil ditemukan!',
+            id: altFolder.data.id,
+            name: altFolder.data.name,
+            owners: altFolder.data.owners?.map((o: any) => ({
+              email: o.emailAddress,
+              name: o.displayName,
+            })),
+          };
+        } catch (altErr: any) {
+          result.alternateFolderCheck = {
+            note: 'Varian huruf kecil f juga dicoba:',
+            error: altErr.message,
+          };
+        }
+      }
+    }
+
+    // 3. Cek berkas lampiran terakhir yang diupload ke database
+    const recent = await prisma.eventAttachment.findFirst({
+      where: { drive_file_id: { not: null } },
+      orderBy: { created_at: 'desc' },
+      include: { event: { select: { id: true, name: true } } },
+    });
+
+    if (recent?.drive_file_id) {
+      try {
+        const fileInfo = await drive.files.get({
+          fileId: recent.drive_file_id,
+          fields: 'id, name, parents, owners, webViewLink, createdTime',
+          supportsAllDrives: true,
+        });
+
+        const parentDetails: any[] = [];
+        if (fileInfo.data.parents && fileInfo.data.parents.length > 0) {
+          for (const pId of fileInfo.data.parents) {
+            try {
+              const pInfo = await drive.files.get({
+                fileId: pId,
+                fields: 'id, name, owners',
+                supportsAllDrives: true,
+              });
+              parentDetails.push({
+                id: pId,
+                name: pInfo.data.name,
+                owners: pInfo.data.owners?.map((o: any) => o.emailAddress),
+              });
+            } catch (pErr: any) {
+              parentDetails.push({ id: pId, error: pErr.message });
+            }
+          }
+        }
+
+        result.recentUpload = {
+          attachmentId: recent.id,
+          fileName: recent.file_name,
+          eventName: recent.event?.name,
+          driveFileId: recent.drive_file_id,
+          createdAt: recent.created_at,
+          owners: fileInfo.data.owners?.map((o: any) => ({
+            email: o.emailAddress,
+            name: o.displayName,
+          })),
+          parents: parentDetails,
+          webViewLink: fileInfo.data.webViewLink,
+        };
+      } catch (fErr: any) {
+        result.recentUpload = {
+          attachmentId: recent.id,
+          driveFileId: recent.drive_file_id,
+          error: fErr.message,
+        };
+      }
+    }
+
+    return result;
+  } catch (err: any) {
+    result.error = err.message;
+    return result;
+  }
 }

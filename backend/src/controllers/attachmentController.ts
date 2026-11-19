@@ -6,6 +6,7 @@ import {
   isGoogleDriveConfigured,
   getGoogleDriveAuthMode,
   getCentralizedDriveFolderUrl,
+  getGoogleDriveDiagnostics,
 } from '../services/googleDriveService.js';
 import {
   CategoryDocumentSlot,
@@ -89,6 +90,18 @@ export async function getDriveStatus(req: Request, res: Response, next: NextFunc
             ? 'Google Drive API terhubung (Service Account aktif).'
             : 'Google Drive belum dikonfigurasi. Menggunakan penyimpanan sementara server.',
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getDriveDiagnostics(req: Request, res: Response, next: NextFunction) {
+  try {
+    const diagnostics = await getGoogleDriveDiagnostics();
+    res.json({
+      success: true,
+      data: diagnostics,
     });
   } catch (error) {
     next(error);

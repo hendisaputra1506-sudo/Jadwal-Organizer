@@ -5,6 +5,7 @@ import path from 'path';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 import {
   getDriveStatus,
+  getDriveDiagnostics,
   getEventAttachments,
   uploadEventAttachment,
   uploadEventAttachmentsBatch,
@@ -14,6 +15,9 @@ import {
 } from '../controllers/attachmentController.js';
 
 const router = express.Router();
+
+// Diagnostik status koneksi & akun Google Drive
+router.get('/diagnostics', getDriveDiagnostics);
 
 // Gunakan DiskStorage di os.tmpdir() agar upload video besar (hingga 150 MB) tidak membebani RAM server
 const storage = multer.diskStorage({
