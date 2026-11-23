@@ -82,6 +82,7 @@ export function generateFollowUpMessage(
     candidate_dates?: Array<{ candidate_date: string | Date }>;
     estimated_month?: string | null;
     estimated_week_label?: string | null;
+    officers?: Array<{ role?: string | null; user?: { name?: string | null; username?: string | null } }>;
   },
   modeOverride?: WhatsAppTemplateMode
 ): string {
@@ -176,6 +177,13 @@ export function generateFollowUpMessage(
     }
     if (locationText) {
       detailLines.push(`📍 Lokasi: *${locationText}*`);
+    }
+    if (event.officers && event.officers.length > 0) {
+      detailLines.push(
+        `👥 Petugas/Personil: *${event.officers
+          .map((o) => `@${o.user?.name || 'Staf'} (${o.role})`)
+          .join(', ')}*`
+      );
     }
 
     return `Yth. ${greetingName},

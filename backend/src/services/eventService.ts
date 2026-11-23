@@ -12,7 +12,16 @@ export interface EventFilterQuery {
   endDate?: string;
   month?: string; // YYYY-MM
   isTentativeOnly?: boolean;
+  officerUserId?: string;
 }
+
+const officerInclude = {
+  include: {
+    user: {
+      select: { id: true, name: true, username: true },
+    },
+  },
+};
 
 export async function getWeeklyEvents(startDateStr: string, endDateStr: string) {
   const start = new Date(`${startDateStr}T00:00:00.000Z`);
@@ -31,6 +40,7 @@ export async function getWeeklyEvents(startDateStr: string, endDateStr: string) 
       category: true,
       location: true,
       candidate_dates: true,
+      officers: officerInclude,
     },
     orderBy: [
       { event_date: 'asc' },
@@ -63,6 +73,7 @@ export async function getMonthlyEvents(year: number, month: number) {
       category: true,
       location: true,
       candidate_dates: true,
+      officers: officerInclude,
     },
     orderBy: [
       { event_date: 'asc' },
@@ -93,6 +104,7 @@ export async function getMonthlyEvents(year: number, month: number) {
       category: true,
       location: true,
       candidate_dates: true,
+      officers: officerInclude,
     },
   });
 
@@ -133,6 +145,14 @@ export async function getAllEvents(filters: EventFilterQuery) {
 
   if (datePrecision) {
     whereClause.date_precision = datePrecision;
+  }
+
+  if (filters.officerUserId) {
+    whereClause.officers = {
+      some: {
+        user_id: filters.officerUserId,
+      },
+    };
   }
 
   if (isTentativeOnly) {
@@ -180,6 +200,7 @@ export async function getAllEvents(filters: EventFilterQuery) {
       category: true,
       location: true,
       candidate_dates: true,
+      officers: officerInclude,
     },
     orderBy: [
       { event_date: 'asc' },
@@ -212,6 +233,7 @@ export async function getTentativeEvents() {
       created_by: {
         select: { id: true, name: true },
       },
+      officers: officerInclude,
     },
     orderBy: [
       { created_at: 'desc' },
@@ -249,6 +271,7 @@ export async function getEventById(id: string) {
       updated_by: {
         select: { id: true, name: true, username: true },
       },
+      officers: officerInclude,
     },
   });
 
@@ -434,6 +457,7 @@ export async function getArchivedEvents(filters: ArchiveFilterQuery) {
           location: {
             select: { id: true, name: true },
           },
+          officers: officerInclude,
           attachments: {
             select: {
               id: true,

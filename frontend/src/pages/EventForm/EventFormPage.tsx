@@ -14,6 +14,10 @@ import {
   Check,
   PackageCheck,
   Copy,
+  Users,
+  UserPlus,
+  X,
+  Tag,
 } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
@@ -50,6 +54,18 @@ export const EventFormPage: React.FC = () => {
   // Master Data
   const [categories, setCategories] = useState<Category[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [staffList, setStaffList] = useState<{ id: string; name: string; username: string }[]>([]);
+
+  // Officers / Petugas Tagging State
+  interface TaggedOfficer {
+    userId: string;
+    name: string;
+    username?: string;
+    role: string;
+  }
+  const [taggedOfficers, setTaggedOfficers] = useState<TaggedOfficer[]>([]);
+  const [selectedStaffId, setSelectedStaffId] = useState<string>('');
+  const [customRoleInput, setCustomRoleInput] = useState<string>('Koordinator');
 
   // Source name when duplicating
   const [sourceEventName, setSourceEventName] = useState<string>('');
@@ -87,9 +103,10 @@ export const EventFormPage: React.FC = () => {
   useEffect(() => {
     async function loadMeta() {
       try {
-        const [catRes, locRes]: [any, any] = await Promise.all([
+        const [catRes, locRes, usersRes]: [any, any, any] = await Promise.all([
           api.get('/categories'),
           api.get('/locations'),
+          api.get('/users').catch(() => ({ success: false, data: [] })),
         ]);
         if (catRes.success) {
           setCategories(catRes.data);
@@ -98,6 +115,7 @@ export const EventFormPage: React.FC = () => {
           }
         }
         if (locRes.success) setLocations(locRes.data);
+        if (usersRes.success && usersRes.data) setStaffList(usersRes.data);
       } catch (err) {
         console.error('Failed to load form meta:', err);
       }
@@ -142,6 +160,17 @@ export const EventFormPage: React.FC = () => {
           setContactInfo(ev.contact_info || '');
           setDescription(ev.description || '');
           setRequirementsNotes(ev.requirements_notes || '');
+
+          if (ev.officers && Array.isArray(ev.officers)) {
+            setTaggedOfficers(
+              ev.officers.map((off: any) => ({
+                userId: off.user_id,
+                name: off.user?.name || 'Staf',
+                username: off.user?.username || '',
+                role: off.role || 'Koordinator',
+              }))
+            );
+          }
         }
       } catch (err: any) {
         toastError(err.message || 'Gagal memuat data kegiatan.', 'Error');
@@ -152,6 +181,41 @@ export const EventFormPage: React.FC = () => {
 
     loadEvent();
   }, [isEditMode, isDuplicateMode, id, duplicateFromId, toastError]);
+
+  const handleAddOfficer = () => {
+    if (!selectedStaffId) {
+      toastError('Silakan pilih staf terlebih dahulu.', 'Pilih Staf');
+      return;
+    }
+    const staff = staffList.find((s) => s.id === selectedStaffId);
+    if (!staff) return;
+
+    if (taggedOfficers.some((to) => to.userId === staff.id)) {
+      toastError('Staf ini sudah di-tag sebagai petugas.', 'Duplikasi Petugas');
+      return;
+    }
+
+    setTaggedOfficers((prev) => [
+      ...prev,
+      {
+        userId: staff.id,
+        name: staff.name,
+        username: staff.username,
+        role: customRoleInput.trim() || 'Koordinator',
+      },
+    ]);
+    setSelectedStaffId('');
+  };
+
+  const handleRemoveOfficer = (userId: string) => {
+    setTaggedOfficers((prev) => prev.filter((to) => to.userId !== userId));
+  };
+
+  const handleUpdateOfficerRole = (userId: string, newRole: string) => {
+    setTaggedOfficers((prev) =>
+      prev.map((to) => (to.userId === userId ? { ...to, role: newRole } : to))
+    );
+  };
 
   // Real-time Conflict Check
   const runConflictCheck = useCallback(async () => {
@@ -275,6 +339,10 @@ export const EventFormPage: React.FC = () => {
       contactInfo: contactInfo.trim() || null,
       description: description.trim() || null,
       requirementsNotes: requirementsNotes.trim() || null,
+      officers: taggedOfficers.map((to) => ({
+        userId: to.userId,
+        role: to.role.trim() || null,
+      })),
     };
 
     try {
@@ -676,14 +744,177 @@ export const EventFormPage: React.FC = () => {
             </div>
           </Card>
 
-          {/* SECTION 4: KEBUTUHAN KEGIATAN (PENTING) */}
+          {/* SECTION 4: PETUGAS PELAKSANA (TAG STAF) */}
+          <Card>
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-purple-600" />
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                    4. Petugas Pelaksana (Tag Staf)
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Tugaskan staf kampus internal untuk kegiatan ini. Staf akan menerima notifikasi dan jadwal tugas di akun mereka.
+                </p>
+              </div>
+              <span className="text-[11px] font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
+                {taggedOfficers.length} Petugas
+              </span>
+            </div>
+
+            <div className="p-4 sm:p-6 space-y-4">
+              {/* Form Input Petugas */}
+              <div className="p-3.5 sm:p-4 rounded-clay bg-slate-50/70 border border-slate-200 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                  {/* Select Staff */}
+                  <div className="sm:col-span-5">
+                    <Select
+                      label="Pilih Staf Kampus"
+                      value={selectedStaffId}
+                      onChange={(e) => setSelectedStaffId(e.target.value)}
+                      placeholder="-- Pilih Akun Staf --"
+                      searchPlaceholder="Ketik nama atau @username staf..."
+                    >
+                      <option value="">-- Pilih Akun Staf --</option>
+                      {staffList
+                        .filter((s) => !taggedOfficers.some((to) => to.userId === s.id))
+                        .map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} (@{s.username})
+                          </option>
+                        ))}
+                    </Select>
+                  </div>
+
+                  {/* Role Input */}
+                  <div className="sm:col-span-5">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Peran / Tugas (Bisa Ketik Bebas)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Koordinator, Dokumentasi, Pemateri..."
+                      value={customRoleInput}
+                      onChange={(e) => setCustomRoleInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddOfficer();
+                        }
+                      }}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 shadow-clay-inset focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                    />
+                  </div>
+
+                  {/* Add Button */}
+                  <div className="sm:col-span-2">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      onClick={handleAddOfficer}
+                      leftIcon={<UserPlus className="w-4 h-4" />}
+                      className="w-full justify-center bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white"
+                    >
+                      Tag Staf
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Quick Role Suggestions */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[11px] font-medium text-slate-400 mr-1 flex items-center gap-1">
+                    <Tag className="w-3 h-3" /> Rekomendasi peran:
+                  </span>
+                  {[
+                    'Koordinator',
+                    'Pemateri / Narasumber',
+                    'Dokumentasi & Media',
+                    'Perlengkapan & Logistik',
+                    'Konsumsi',
+                    'Narahubung / LO',
+                    'Operator IT',
+                    'Sopir / Transportasi',
+                  ].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCustomRoleInput(preset)}
+                      className={`text-[11px] px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                        customRoleInput === preset
+                          ? 'bg-purple-100 border-purple-300 text-purple-800 font-bold'
+                          : 'bg-white border-slate-200 text-slate-600 hover:border-purple-300 hover:text-purple-700'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tagged Officers List */}
+              {taggedOfficers.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-slate-200 rounded-clay bg-white text-slate-400 text-xs">
+                  <Users className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                  <p className="font-semibold text-slate-600">Belum ada petugas yang di-tag</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Pilih staf kampus dan tentukan perannya di atas untuk menugaskan personil pada kegiatan ini.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {taggedOfficers.map((officer) => (
+                    <div
+                      key={officer.userId}
+                      className="flex items-center justify-between p-3 bg-white rounded-clay-sm border border-purple-100 hover:border-purple-200 shadow-xs transition-all gap-2"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-purple-100 border border-purple-200 text-purple-800 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                          {officer.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-900 truncate">
+                            {officer.name}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {officer.username && (
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                @{officer.username}
+                              </span>
+                            )}
+                            <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
+                              {officer.role}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveOfficer(officer.userId)}
+                          title="Hapus petugas ini"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* SECTION 5: KEBUTUHAN KEGIATAN (PENTING) */}
           <Card>
             <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
                   <PackageCheck className="w-5 h-5 text-blue-600" />
                   <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                    4. Kebutuhan Kegiatan
+                    5. Kebutuhan Kegiatan
                   </h3>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">

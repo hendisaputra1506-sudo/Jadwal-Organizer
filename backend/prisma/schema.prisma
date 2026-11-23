@@ -29,16 +29,25 @@ enum DatePrecision {
   EXACT
 }
 
+enum NotificationType {
+  ASSIGNMENT
+  REMINDER_H1
+  REMINDER_TODAY
+  EVENT_UPDATED
+}
+
 model User {
-  id             String    @id @default(cuid())
-  name           String
-  username       String    @unique
-  password_hash  String
-  role           UserRole  @default(USER)
-  created_at     DateTime  @default(now())
+  id              String         @id @default(cuid())
+  name            String
+  username        String         @unique
+  password_hash   String
+  role            UserRole       @default(USER)
+  created_at      DateTime       @default(now())
   events_created  Event[]        @relation("CreatedBy")
   events_updated  Event[]        @relation("UpdatedBy")
   letters_created LetterRecord[] @relation("LetterCreator")
+  assigned_duties EventOfficer[] @relation("AssignedOfficer")
+  notifications   Notification[] @relation("UserNotifications")
 
   @@map("users")
 }
@@ -92,6 +101,8 @@ model Event {
   updated_at           DateTime             @updatedAt
   candidate_dates      EventCandidateDate[]
   attachments          EventAttachment[]
+  officers             EventOfficer[]
+  notifications        Notification[]
 
   @@index([event_date])
   @@index([location_id])
@@ -145,4 +156,36 @@ model LetterRecord {
 
   @@index([created_by_id])
   @@map("letter_records")
+}
+
+model EventOfficer {
+  id         String   @id @default(cuid())
+  event_id   String
+  event      Event    @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  user_id    String
+  user       User     @relation("AssignedOfficer", fields: [user_id], references: [id], onDelete: Cascade)
+  role       String?  // Custom typed role: "Koordinator", "Dokumentasi", "Pemateri", "Perlengkapan", dll.
+  notes      String?
+  created_at DateTime @default(now())
+
+  @@unique([event_id, user_id])
+  @@index([user_id])
+  @@index([event_id])
+  @@map("event_officers")
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  user_id    String
+  user       User             @relation("UserNotifications", fields: [user_id], references: [id], onDelete: Cascade)
+  event_id   String?
+  event      Event?           @relation(fields: [event_id], references: [id], onDelete: SetNull)
+  title      String
+  message    String
+  type       NotificationType @default(ASSIGNMENT)
+  is_read    Boolean          @default(false)
+  created_at DateTime         @default(now())
+
+  @@index([user_id, is_read])
+  @@map("notifications")
 }

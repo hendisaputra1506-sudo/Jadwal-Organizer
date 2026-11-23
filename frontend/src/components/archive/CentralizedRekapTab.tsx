@@ -16,6 +16,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { Button } from '../common/Button';
+import { Select } from '../common/Select';
 import { AnimatedCounter } from '../common/AnimatedCounter';
 import { EmptyState } from '../feedback/EmptyState';
 import { CardSkeleton } from '../feedback/Skeleton';
@@ -399,18 +400,19 @@ export const CentralizedRekapTab: React.FC = () => {
           title="Filter bulan"
         />
 
-        <select
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value as any);
-            setPage(1);
-          }}
-          className="px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-        >
-          <option value="all">Semua Status</option>
-          <option value="uploaded">Sudah Upload</option>
-          <option value="missing">Belum Upload</option>
-        </select>
+        <div className="w-full sm:w-44">
+          <Select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as any);
+              setPage(1);
+            }}
+          >
+            <option value="all">Semua Status</option>
+            <option value="uploaded">Sudah Upload</option>
+            <option value="missing">Belum Upload</option>
+          </Select>
+        </div>
 
         {(search || monthFilter || statusFilter !== 'all') && (
           <Button

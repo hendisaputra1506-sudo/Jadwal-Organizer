@@ -7,7 +7,24 @@ import { CommandSearchModal } from '../common/CommandSearchModal';
 export const AppLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [searchOpen, setSearchOpen] = useState<boolean>(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const location = useLocation();
+
+  const handleToggleCollapse = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -29,10 +46,19 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col lg:flex-row">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={handleToggleCollapse}
+      />
 
       {/* Main Content Area with crisp spring page entrance */}
-      <div className="flex-1 lg:pl-64 flex flex-col min-h-screen transition-all">
+      <div
+        className={`flex-1 ${
+          isCollapsed ? 'lg:pl-20' : 'lg:pl-64'
+        } flex flex-col min-h-screen transition-all duration-300 ease-in-out`}
+      >
         <motion.main
           key={location.pathname}
           initial={{ opacity: 0, y: 20, scale: 0.99 }}

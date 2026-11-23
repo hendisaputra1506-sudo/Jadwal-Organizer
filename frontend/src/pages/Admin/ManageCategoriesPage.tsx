@@ -14,6 +14,7 @@ import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { Input } from '../../components/common/Input';
+import { Select } from '../../components/common/Select';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { api } from '../../services/api';
 import { Category, CategoryDocumentSlot, SlotAcceptType } from '../../types/index';
@@ -501,20 +502,17 @@ export const ManageCategoriesPage: React.FC = () => {
                           />
                         </div>
                         <div className="sm:col-span-5">
-                          <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                            Format Berkas
-                          </label>
-                          <select
+                          <Select
+                            label="Format Berkas"
                             value={slot.accept}
                             onChange={(e) =>
                               updateSlot(idx, { accept: e.target.value as SlotAcceptType })
                             }
-                            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                           >
                             <option value="PDF">Khusus PDF</option>
                             <option value="DOC">Dokumen (PDF / Word / Excel / PPT)</option>
                             <option value="ANY">Semua Berkas</option>
-                          </select>
+                          </Select>
                         </div>
                       </div>
 

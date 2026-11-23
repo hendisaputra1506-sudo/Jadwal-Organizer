@@ -11,6 +11,7 @@ import {
   remove,
   cancel,
   markCompleted,
+  unmarkCompleted,
 } from '../controllers/eventController.js';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 
@@ -30,6 +31,7 @@ router.get('/:id', authenticateToken, getById);
 router.post('/', authenticateToken, create);
 router.put('/:id', authenticateToken, update);
 router.patch('/:id/complete', authenticateToken, markCompleted);
+router.patch('/:id/uncomplete', authenticateToken, unmarkCompleted);
 router.patch('/:id/cancel', authenticateToken, cancel);
 router.delete('/:id', authenticateToken, requireAdmin, remove);
 

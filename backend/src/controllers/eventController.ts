@@ -47,6 +47,7 @@ export async function getAll(req: Request, res: Response): Promise<void> {
       endDate: req.query.endDate as string,
       month: req.query.month as string,
       isTentativeOnly: req.query.isTentativeOnly === 'true',
+      officerUserId: req.query.officerUserId as string,
     };
 
     const events = await eventService.getAllEvents(filters);
@@ -130,6 +131,7 @@ export async function create(req: AuthenticatedRequest, res: Response): Promise<
       contactInfo,
       requirementsNotes,
       candidateDates = [],
+      officers = [],
     } = req.body;
 
     if (!name || !name.trim()) {
@@ -186,13 +188,44 @@ export async function create(req: AuthenticatedRequest, res: Response): Promise<
             candidate_date: new Date(`${cDate}T00:00:00.000Z`),
           })),
         },
+        officers: {
+          create: (officers || [])
+            .filter((o: any) => o && o.userId)
+            .map((o: any) => ({
+              user_id: o.userId,
+              role: o.role ? String(o.role).trim() : null,
+              notes: o.notes ? String(o.notes).trim() : null,
+            })),
+        },
       },
       include: {
         category: true,
         location: true,
         candidate_dates: true,
+        officers: {
+          include: {
+            user: {
+              select: { id: true, name: true, username: true },
+            },
+          },
+        },
       },
     });
+
+    // Create notifications for assigned officers
+    const validOfficers = (officers || []).filter((o: any) => o && o.userId);
+    if (validOfficers.length > 0) {
+      const notifs = validOfficers.map((o: any) => ({
+        user_id: o.userId,
+        event_id: newEvent.id,
+        title: 'Penugasan Agenda Baru',
+        message: `Anda ditugaskan pada agenda "${newEvent.name}"${o.role ? ` sebagai ${o.role}` : ''}.`,
+        type: 'ASSIGNMENT' as const,
+      }));
+      await prisma.notification.createMany({ data: notifs }).catch((err) =>
+        console.error('Failed to create assignment notification:', err)
+      );
+    }
 
     res.status(201).json({
       success: true,
@@ -228,11 +261,12 @@ export async function update(req: AuthenticatedRequest, res: Response): Promise<
       contactInfo,
       requirementsNotes,
       candidateDates,
+      officers,
     } = req.body;
 
     const existing = await prisma.event.findUnique({
       where: { id },
-      include: { candidate_dates: true },
+      include: { candidate_dates: true, officers: true },
     });
 
     if (!existing || existing.is_deleted) {
@@ -284,6 +318,40 @@ export async function update(req: AuthenticatedRequest, res: Response): Promise<
       }
     }
 
+    // Handle officers update & notifications
+    const prevUserIds = new Set((existing.officers || []).map((o: any) => o.user_id));
+    if (Array.isArray(officers)) {
+      await prisma.eventOfficer.deleteMany({
+        where: { event_id: id },
+      });
+      const validOfficers = officers.filter((o: any) => o && o.userId);
+      if (validOfficers.length > 0) {
+        await prisma.eventOfficer.createMany({
+          data: validOfficers.map((o: any) => ({
+            event_id: id,
+            user_id: o.userId,
+            role: o.role ? String(o.role).trim() : null,
+            notes: o.notes ? String(o.notes).trim() : null,
+          })),
+        });
+      }
+
+      // Notify newly assigned officers
+      const newlyAssigned = validOfficers.filter((o: any) => !prevUserIds.has(o.userId));
+      if (newlyAssigned.length > 0) {
+        const notifs = newlyAssigned.map((o: any) => ({
+          user_id: o.userId,
+          event_id: id,
+          title: 'Penugasan Agenda',
+          message: `Anda ditugaskan pada agenda "${name?.trim() || existing.name}"${o.role ? ` sebagai ${o.role}` : ''}.`,
+          type: 'ASSIGNMENT' as const,
+        }));
+        await prisma.notification.createMany({ data: notifs }).catch((err) =>
+          console.error('Failed to create assignment notification:', err)
+        );
+      }
+    }
+
     const updated = await prisma.event.update({
       where: { id },
       data: {
@@ -308,6 +376,13 @@ export async function update(req: AuthenticatedRequest, res: Response): Promise<
         category: true,
         location: true,
         candidate_dates: true,
+        officers: {
+          include: {
+            user: {
+              select: { id: true, name: true, username: true },
+            },
+          },
+        },
       },
     });
 
@@ -413,6 +488,18 @@ export async function markCompleted(req: AuthenticatedRequest, res: Response): P
         status: 'COMPLETED',
         updated_by_id: userId,
       },
+      include: {
+        category: true,
+        location: true,
+        candidate_dates: true,
+        officers: {
+          include: {
+            user: {
+              select: { id: true, name: true, username: true },
+            },
+          },
+        },
+      },
     });
 
     res.json({
@@ -423,5 +510,51 @@ export async function markCompleted(req: AuthenticatedRequest, res: Response): P
   } catch (error: any) {
     console.error('Error marking event completed:', error);
     res.status(500).json({ success: false, message: 'Gagal menandai kegiatan selesai.' });
+  }
+}
+
+export async function unmarkCompleted(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+
+    const existing = await prisma.event.findUnique({ where: { id } });
+    if (!existing || existing.is_deleted) {
+      res.status(404).json({ success: false, message: 'Kegiatan tidak ditemukan.' });
+      return;
+    }
+
+    const targetStatus = existing.date_precision === 'EXACT' ? 'CONFIRMED' : 'WAITING_CONFIRMATION';
+
+    const updated = await prisma.event.update({
+      where: { id },
+      data: {
+        status: targetStatus,
+        updated_by_id: userId,
+      },
+      include: {
+        category: true,
+        location: true,
+        candidate_dates: true,
+        officers: {
+          include: {
+            user: {
+              select: { id: true, name: true, username: true },
+            },
+          },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `Status kegiatan berhasil dikembalikan menjadi ${
+        targetStatus === 'CONFIRMED' ? 'Terjadwal' : 'Menunggu Konfirmasi'
+      }.`,
+      data: updated,
+    });
+  } catch (error: any) {
+    console.error('Error unmarking event completed:', error);
+    res.status(500).json({ success: false, message: 'Gagal mengembalikan status kegiatan.' });
   }
 }

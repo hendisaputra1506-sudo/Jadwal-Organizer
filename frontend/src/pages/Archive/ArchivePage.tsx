@@ -32,6 +32,7 @@ import { CentralizedRekapTab } from '../../components/archive/CentralizedRekapTa
 import { api } from '../../services/api';
 import { Category } from '../../types/index';
 import { useToast } from '../../context/ToastContext';
+import { fireMicroConfetti } from '../../utils/confetti';
 
 interface OutletContextType {
   onToggleSidebar: () => void;
@@ -230,6 +231,7 @@ export const ArchivePage: React.FC = () => {
     try {
       const res: any = await api.patch(`/events/${ev.id}/complete`, {});
       if (res.success) {
+        fireMicroConfetti();
         success(`"${ev.name}" ditandai Selesai.`);
         setData((prev) => ({
           ...prev,
@@ -240,6 +242,27 @@ export const ArchivePage: React.FC = () => {
       }
     } catch (err: any) {
       toastError(err.message || 'Gagal memperbarui status kegiatan.');
+    } finally {
+      setCompletingId(null);
+    }
+  };
+
+  const handleUnmarkCompleted = async (e: React.MouseEvent, ev: ArchiveEventItem) => {
+    e.stopPropagation();
+    setCompletingId(ev.id);
+    try {
+      const res: any = await api.patch(`/events/${ev.id}/uncomplete`, {});
+      if (res.success) {
+        success(`Status "${ev.name}" berhasil dikembalikan.`);
+        setData((prev) => ({
+          ...prev,
+          items: prev.items.map((item) =>
+            item.id === ev.id ? { ...item, status: 'CONFIRMED' } : item
+          ),
+        }));
+      }
+    } catch (err: any) {
+      toastError(err.message || 'Gagal mengembalikan status kegiatan.');
     } finally {
       setCompletingId(null);
     }
@@ -801,10 +824,21 @@ export const ArchivePage: React.FC = () => {
                           <span>{completingId === ev.id ? 'Menyimpan...' : 'Tandai Selesai'}</span>
                         </button>
                       ) : (
-                        <span className="text-[11px] font-semibold text-emerald-600 inline-flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          Terarsip Selesai
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-semibold text-emerald-600 inline-flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Terarsip Selesai
+                          </span>
+                          <button
+                            type="button"
+                            disabled={completingId === ev.id}
+                            onClick={(e) => handleUnmarkCompleted(e, ev)}
+                            title="Kembalikan status kegiatan"
+                            className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200/80 transition-colors cursor-pointer"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                          </button>
+                        </div>
                       )}
 
                       <span className="font-bold text-blue-600 inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">

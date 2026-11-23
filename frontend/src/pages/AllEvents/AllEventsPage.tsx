@@ -12,8 +12,16 @@ import {
   Edit,
   Trash2,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Copy,
   ArrowUpDown,
+  CheckCircle2,
+  CheckCircle,
+  Users,
+  UserCheck,
+  Tag,
+  X,
 } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
@@ -27,6 +35,7 @@ import { api } from '../../services/api';
 import { EventItem, Category, Location } from '../../types/index';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { fireMicroConfetti } from '../../utils/confetti';
 
 interface OutletContextType {
   onToggleSidebar: () => void;
@@ -42,7 +51,7 @@ interface EventDateGroup {
 
 export const AllEventsPage: React.FC = () => {
   const { onToggleSidebar } = useOutletContext<OutletContextType>();
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { success, error: toastError } = useToast();
   const navigate = useNavigate();
   const [mobileCardsRef] = useAutoAnimate();
@@ -53,17 +62,23 @@ export const AllEventsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Filters
+  type QuickFilterType = 'all' | 'today' | 'this_week' | 'my_duties' | 'tentative' | 'completed';
+  const [quickFilter, setQuickFilter] = useState<QuickFilterType>('all');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
+
   const [search, setSearch] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedPrecision, setSelectedPrecision] = useState<string>('');
+  const [isMyDutiesOnly, setIsMyDutiesOnly] = useState<boolean>(false);
   const [dateSort, setDateSort] = useState<'asc' | 'desc'>('asc');
 
   // Delete modal state
   const [deleteTarget, setDeleteTarget] = useState<EventItem | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [completingId, setCompletingId] = useState<string | null>(null);
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -96,9 +111,38 @@ export const AllEventsPage: React.FC = () => {
       const params = new URLSearchParams();
       if (debouncedSearch) params.append('search', debouncedSearch);
       if (selectedCategory) params.append('categoryId', selectedCategory);
-      if (selectedStatus) params.append('status', selectedStatus);
       if (selectedLocation) params.append('locationId', selectedLocation);
       if (selectedPrecision) params.append('datePrecision', selectedPrecision);
+
+      // Handle Quick Filters & Status
+      if (quickFilter === 'completed') {
+        params.append('status', 'COMPLETED');
+      } else if (quickFilter === 'tentative') {
+        params.append('isTentativeOnly', 'true');
+      } else if (selectedStatus) {
+        params.append('status', selectedStatus);
+      }
+
+      // Handle My Duties
+      if ((quickFilter === 'my_duties' || isMyDutiesOnly) && user?.id) {
+        params.append('officerUserId', user.id);
+      }
+
+      // Handle Date range
+      if (quickFilter === 'today') {
+        const todayStr = new Date().toISOString().split('T')[0];
+        params.append('startDate', todayStr);
+        params.append('endDate', todayStr);
+      } else if (quickFilter === 'this_week') {
+        const now = new Date();
+        const dayOfWeek = (now.getDay() + 6) % 7; // 0 = Monday
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - dayOfWeek);
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        params.append('startDate', monday.toISOString().split('T')[0]);
+        params.append('endDate', sunday.toISOString().split('T')[0]);
+      }
 
       const res: any = await api.get(`/events?${params.toString()}`);
       if (res.success && res.data) {
@@ -109,11 +153,28 @@ export const AllEventsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [debouncedSearch, selectedCategory, selectedStatus, selectedLocation, selectedPrecision, toastError]);
+  }, [
+    debouncedSearch,
+    selectedCategory,
+    selectedStatus,
+    selectedLocation,
+    selectedPrecision,
+    isMyDutiesOnly,
+    quickFilter,
+    user?.id,
+    toastError,
+  ]);
 
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
+
+  const advancedFilterCount = [
+    selectedCategory,
+    selectedStatus,
+    selectedLocation,
+    selectedPrecision,
+  ].filter(Boolean).length;
 
   const handleResetFilters = () => {
     setSearch('');
@@ -121,10 +182,18 @@ export const AllEventsPage: React.FC = () => {
     setSelectedStatus('');
     setSelectedLocation('');
     setSelectedPrecision('');
+    setIsMyDutiesOnly(false);
+    setQuickFilter('all');
   };
 
   const hasActiveFilters = Boolean(
-    search || selectedCategory || selectedStatus || selectedLocation || selectedPrecision
+    search ||
+      selectedCategory ||
+      selectedStatus ||
+      selectedLocation ||
+      selectedPrecision ||
+      isMyDutiesOnly ||
+      quickFilter !== 'all'
   );
 
   const handleDelete = async () => {
@@ -139,6 +208,40 @@ export const AllEventsPage: React.FC = () => {
       toastError(err.message || 'Gagal menghapus kegiatan.', 'Gagal');
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleToggleComplete = async (ev: EventItem) => {
+    setCompletingId(ev.id);
+    const isCurrentlyCompleted = ev.status === 'COMPLETED';
+    const endpoint = isCurrentlyCompleted ? `/events/${ev.id}/uncomplete` : `/events/${ev.id}/complete`;
+    const targetStatus = isCurrentlyCompleted
+      ? (ev.date_precision === 'EXACT' ? 'CONFIRMED' : 'WAITING_CONFIRMATION')
+      : 'COMPLETED';
+
+    // Optimistic UI update
+    setEvents((prev) =>
+      prev.map((item) => (item.id === ev.id ? { ...item, status: targetStatus } : item))
+    );
+
+    try {
+      const res: any = await api.patch(endpoint);
+      if (res.success) {
+        if (!isCurrentlyCompleted) {
+          fireMicroConfetti();
+          success(`"${ev.name}" berhasil ditandai Selesai.`);
+        } else {
+          success(`Status "${ev.name}" berhasil dikembalikan.`);
+        }
+      }
+    } catch (err: any) {
+      // Revert on error
+      setEvents((prev) =>
+        prev.map((item) => (item.id === ev.id ? { ...item, status: ev.status } : item))
+      );
+      toastError(err.message || 'Gagal mengubah status kegiatan.', 'Gagal');
+    } finally {
+      setCompletingId(null);
     }
   };
 
@@ -244,95 +347,210 @@ export const AllEventsPage: React.FC = () => {
       />
 
       <div className="p-3.5 sm:p-8 max-w-7xl mx-auto space-y-4 sm:space-y-6">
-        {/* Search and Filters Bar */}
-        <div className="bg-white rounded-clay p-3.5 sm:p-5 border border-white/90 shadow-clay-card space-y-3.5">
-          <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
-            <div className="w-full sm:flex-1">
+        {/* Universal Search & Quick Filter Toolbar */}
+        <div className="bg-white rounded-clay p-3.5 sm:p-5 border border-slate-200/80 shadow-clay-card space-y-3.5">
+          {/* Top Bar: Search Input, Advanced Filter Toggle, Sort */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
+            <div className="flex-1 relative">
               <Input
-                placeholder="Cari kegiatan, lokasi, kontak..."
+                placeholder="Cari kegiatan, lokasi, kontak, atau petugas..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                leftIcon={<Search className="w-4 h-4" />}
+                leftIcon={<Search className="w-4 h-4 text-slate-400" />}
+                className="w-full"
               />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
+                  title="Hapus pencarian"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              <Button
+                variant={showAdvancedFilters || advancedFilterCount > 0 ? 'primary' : 'outline'}
+                size="sm"
+                onClick={() => setShowAdvancedFilters((prev) => !prev)}
+                leftIcon={<Filter className="w-3.5 h-3.5" />}
+                rightIcon={
+                  showAdvancedFilters ? (
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )
+                }
+                className={
+                  advancedFilterCount > 0
+                    ? 'bg-blue-600 text-white font-bold'
+                    : ''
+                }
+              >
+                <span>Filter Lanjutan</span>
+                {advancedFilterCount > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-white text-blue-700 font-extrabold">
+                    {advancedFilterCount}
+                  </span>
+                )}
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setDateSort((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
                 leftIcon={<ArrowUpDown className="w-3.5 h-3.5 text-blue-600" />}
-                className="flex-1 sm:flex-none"
                 title="Ubah urutan tanggal kegiatan"
               >
-                {dateSort === 'asc' ? 'Tgl: Terlama → Terbaru' : 'Tgl: Terbaru → Terlama'}
+                <span className="hidden sm:inline">
+                  {dateSort === 'asc' ? 'Tgl: Terlama → Terbaru' : 'Tgl: Terbaru → Terlama'}
+                </span>
+                <span className="sm:hidden">{dateSort === 'asc' ? 'Asc' : 'Desc'}</span>
               </Button>
+
               {hasActiveFilters && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleResetFilters}
-                  leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
-                  className="flex-1 sm:flex-none"
+                  leftIcon={<RotateCcw className="w-3.5 h-3.5 text-slate-500" />}
+                  title="Reset Semua Filter"
                 >
-                  Reset Filter
+                  <span className="hidden sm:inline">Reset</span>
                 </Button>
               )}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 pt-1 border-t border-slate-100">
-            <Select
-              placeholder="Semua Kategori"
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-            >
-              <option value="">Semua Kategori</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
+          {/* Quick Filter Pills Row */}
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 no-scrollbar text-xs">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 flex-shrink-0">
+              Filter Cepat:
+            </span>
 
-            <Select
-              placeholder="Semua Status"
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-            >
-              <option value="">Semua Status</option>
-              <option value="CONFIRMED">Terjadwal</option>
-              <option value="WAITING_CONFIRMATION">Menunggu Konfirmasi</option>
-              <option value="DRAFT">Tentatif</option>
-              <option value="COMPLETED">Selesai</option>
-              <option value="CANCELLED">Dibatalkan</option>
-            </Select>
-
-            <Select
-              placeholder="Semua Lokasi"
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-            >
-              <option value="">Semua Lokasi</option>
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </Select>
-
-            <Select
-              placeholder="Kepastian Tanggal"
-              value={selectedPrecision}
-              onChange={(e) => setSelectedPrecision(e.target.value)}
-            >
-              <option value="">Semua Kepastian</option>
-              <option value="EXACT">Tanggal Pasti</option>
-              <option value="CANDIDATES">Kandidat Tanggal</option>
-              <option value="WEEK">Perkiraan Minggu</option>
-              <option value="MONTH">Perkiraan Bulan</option>
-              <option value="UNKNOWN">Belum Tahu</option>
-            </Select>
+            {[
+              { id: 'all', label: 'Semua' },
+              { id: 'today', label: 'Hari Ini' },
+              { id: 'this_week', label: 'Minggu Ini' },
+              { id: 'my_duties', label: '👤 Tugas Saya', color: 'purple' },
+              { id: 'tentative', label: '⏳ Tentatif', color: 'amber' },
+              { id: 'completed', label: '✓ Selesai', color: 'emerald' },
+            ].map((pill) => {
+              const isActive = quickFilter === pill.id;
+              return (
+                <button
+                  key={pill.id}
+                  type="button"
+                  onClick={() => {
+                    if (pill.id === quickFilter && pill.id !== 'all') {
+                      setQuickFilter('all');
+                      if (pill.id === 'my_duties') setIsMyDutiesOnly(false);
+                    } else {
+                      setQuickFilter(pill.id as QuickFilterType);
+                      if (pill.id === 'my_duties') setIsMyDutiesOnly(true);
+                      else setIsMyDutiesOnly(false);
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-full font-semibold whitespace-nowrap transition-all cursor-pointer text-xs flex items-center gap-1.5 ${
+                    isActive
+                      ? pill.id === 'my_duties'
+                        ? 'bg-purple-600 text-white shadow-xs font-bold'
+                        : pill.id === 'completed'
+                        ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                        : pill.id === 'tentative'
+                        ? 'bg-amber-600 text-white shadow-xs font-bold'
+                        : 'bg-blue-600 text-white shadow-xs font-bold'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <span>{pill.label}</span>
+                </button>
+              );
+            })}
           </div>
+
+          {/* Collapsible Advanced Filters Drawer */}
+          {showAdvancedFilters && (
+            <div className="p-3.5 bg-slate-50/80 rounded-clay-sm border border-slate-200 space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                <span className="flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5 text-blue-600" />
+                  Kriteria Filter Spesifik
+                </span>
+                {advancedFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory('');
+                      setSelectedStatus('');
+                      setSelectedLocation('');
+                      setSelectedPrecision('');
+                    }}
+                    className="text-xs text-blue-600 hover:underline font-semibold cursor-pointer"
+                  >
+                    Kosongkan Pilihan
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+                <Select
+                  placeholder="Semua Kategori"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                >
+                  <option value="">Semua Kategori</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+
+                <Select
+                  placeholder="Semua Status"
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                >
+                  <option value="">Semua Status</option>
+                  <option value="CONFIRMED">Terjadwal</option>
+                  <option value="WAITING_CONFIRMATION">Menunggu Konfirmasi</option>
+                  <option value="DRAFT">Tentatif</option>
+                  <option value="COMPLETED">Selesai</option>
+                  <option value="CANCELLED">Dibatalkan</option>
+                </Select>
+
+                <Select
+                  placeholder="Semua Lokasi"
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                >
+                  <option value="">Semua Lokasi</option>
+                  {locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </Select>
+
+                <Select
+                  placeholder="Kepastian Tanggal"
+                  value={selectedPrecision}
+                  onChange={(e) => setSelectedPrecision(e.target.value)}
+                >
+                  <option value="">Semua Kepastian</option>
+                  <option value="EXACT">Tanggal Pasti</option>
+                  <option value="CANDIDATES">Kandidat Tanggal</option>
+                  <option value="WEEK">Perkiraan Minggu</option>
+                  <option value="MONTH">Perkiraan Bulan</option>
+                  <option value="UNKNOWN">Belum Tahu</option>
+                </Select>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Event List Table (Desktop) / Cards (Mobile) */}
@@ -438,6 +656,16 @@ export const AllEventsPage: React.FC = () => {
                                   Kontak: {ev.contact_info}
                                 </div>
                               )}
+                              {ev.officers && ev.officers.length > 0 && (
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                                    <Users className="w-2.5 h-2.5 text-purple-600" />
+                                    {ev.officers.some((o) => o.user_id === user?.id)
+                                      ? `Tugas Anda (${ev.officers.find((o) => o.user_id === user?.id)?.role})`
+                                      : `${ev.officers.length} Petugas`}
+                                  </span>
+                                </div>
+                              )}
                             </td>
 
                             {/* Lokasi */}
@@ -472,6 +700,28 @@ export const AllEventsPage: React.FC = () => {
                               onClick={(e) => e.stopPropagation()}
                             >
                               <div className="flex items-center justify-end gap-1.5">
+                                {ev.status !== 'CANCELLED' && (
+                                  <button
+                                    onClick={() => handleToggleComplete(ev)}
+                                    disabled={completingId === ev.id}
+                                    title={
+                                      ev.status === 'COMPLETED'
+                                        ? 'Kegiatan Selesai (Klik untuk kembalikan status)'
+                                        : 'Tandai Kegiatan Selesai'
+                                    }
+                                    className={`p-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${
+                                      ev.status === 'COMPLETED'
+                                        ? 'text-emerald-600 hover:text-slate-600 hover:bg-slate-100'
+                                        : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
+                                    }`}
+                                  >
+                                    {ev.status === 'COMPLETED' ? (
+                                      <CheckCircle className="w-4 h-4 fill-emerald-100" />
+                                    ) : (
+                                      <CheckCircle2 className="w-4 h-4" />
+                                    )}
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => navigate(`/events/new?duplicateFrom=${ev.id}`)}
                                   title="Duplikat Kegiatan"
@@ -563,6 +813,17 @@ export const AllEventsPage: React.FC = () => {
 
                         <h3 className="text-sm font-bold text-slate-900 leading-snug">{ev.name}</h3>
 
+                        {ev.officers && ev.officers.length > 0 && (
+                          <div className="flex items-center gap-1 text-[11px] text-purple-700 bg-purple-50/80 px-2 py-0.5 rounded border border-purple-100">
+                            <Users className="w-3 h-3 text-purple-600 flex-shrink-0" />
+                            <span className="truncate">
+                              {ev.officers.some((o) => o.user_id === user?.id)
+                                ? `Tugas Anda (${ev.officers.find((o) => o.user_id === user?.id)?.role})`
+                                : `${ev.officers.length} Petugas: ${ev.officers.map((o) => o.user?.name).join(', ')}`}
+                            </span>
+                          </div>
+                        )}
+
                         <div className="flex items-center justify-between gap-2 pt-1 text-xs">
                           <div className="flex items-center gap-2 flex-wrap">
                             <CategoryBadge
@@ -580,6 +841,33 @@ export const AllEventsPage: React.FC = () => {
                             )}
                           </div>
                           <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {ev.status !== 'CANCELLED' && (
+                              <button
+                                type="button"
+                                disabled={completingId === ev.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleComplete(ev);
+                                }}
+                                title={
+                                  ev.status === 'COMPLETED'
+                                    ? 'Kegiatan Selesai (Klik untuk kembalikan status)'
+                                    : 'Tandai Kegiatan Selesai'
+                                }
+                                className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer disabled:opacity-50 ${
+                                  ev.status === 'COMPLETED'
+                                    ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                    : 'bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700'
+                                }`}
+                              >
+                                {ev.status === 'COMPLETED' ? (
+                                  <CheckCircle className="w-3 h-3 text-emerald-600" />
+                                ) : (
+                                  <CheckCircle2 className="w-3 h-3" />
+                                )}
+                                <span>{ev.status === 'COMPLETED' ? 'Selesai' : 'Tandai Selesai'}</span>
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={(e) => {

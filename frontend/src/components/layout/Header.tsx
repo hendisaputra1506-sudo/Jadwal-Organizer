@@ -3,6 +3,7 @@ import { Menu, Plus, KeyRound, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../common/Button';
 import { ChangePasswordModal } from '../auth/ChangePasswordModal';
+import { NotificationDropdown } from '../notifications/NotificationDropdown';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -66,6 +67,9 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {action}
+
+            {/* Notification Dropdown */}
+            <NotificationDropdown />
 
             {/* Quick Change Password Button */}
             <button

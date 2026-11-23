@@ -47,3 +47,15 @@ export interface JwtUserPayload {
   name: string;
   role: UserRole;
 }
+
+export type NotificationType =
+  | 'ASSIGNMENT'
+  | 'REMINDER_H1'
+  | 'REMINDER_TODAY'
+  | 'EVENT_UPDATED';
+
+export interface EventOfficerInput {
+  userId: string;
+  role?: string | null;
+  notes?: string | null;
+}

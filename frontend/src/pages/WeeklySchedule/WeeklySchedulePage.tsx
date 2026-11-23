@@ -12,6 +12,7 @@ import {
   Search,
   ShieldCheck,
   CheckCircle2,
+  CheckCircle,
   ArrowRight,
   Sparkles,
   Building2,
@@ -19,6 +20,11 @@ import {
   X,
   Filter,
   MessageSquareShare,
+  Users,
+  UserCheck,
+  Tag,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
@@ -32,6 +38,8 @@ import { WhatsAppSummaryModal } from '../../components/events/WhatsAppSummaryMod
 import { api } from '../../services/api';
 import { EventItem } from '../../types/index';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import { fireMicroConfetti } from '../../utils/confetti';
 
 interface OutletContextType {
   onToggleSidebar: () => void;
@@ -40,6 +48,7 @@ interface OutletContextType {
 export const WeeklySchedulePage: React.FC = () => {
   const { onToggleSidebar } = useOutletContext<OutletContextType>();
   const { user } = useAuth();
+  const { success, error: toastError } = useToast();
   const navigate = useNavigate();
   const [focusedGridRef] = useAutoAnimate();
 
@@ -47,10 +56,19 @@ export const WeeklySchedulePage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [selectedDayFilter, setSelectedDayFilter] = useState<string>('all');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
+  const [isMyDutiesOnly, setIsMyDutiesOnly] = useState<boolean>(false);
+  const [layoutMode, setLayoutMode] = useState<'grid' | 'compact'>(() => {
+    try {
+      return (localStorage.getItem('weekly_layout_mode') as any) || 'grid';
+    } catch {
+      return 'grid';
+    }
+  });
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [events, setEvents] = useState<EventItem[]>([]);
   const [tentativeCount, setTentativeCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [completingId, setCompletingId] = useState<string | null>(null);
   const [isWhatsAppSummaryOpen, setIsWhatsAppSummaryOpen] = useState<boolean>(false);
 
   // Helper to calculate Monday of the week
@@ -134,6 +152,40 @@ export const WeeklySchedulePage: React.FC = () => {
   useEffect(() => {
     fetchWeeklyData();
   }, [fetchWeeklyData]);
+
+  const handleToggleComplete = async (e: React.MouseEvent, ev: EventItem) => {
+    e.stopPropagation();
+    setCompletingId(ev.id);
+    const isCurrentlyCompleted = ev.status === 'COMPLETED';
+    const endpoint = isCurrentlyCompleted ? `/events/${ev.id}/uncomplete` : `/events/${ev.id}/complete`;
+    const targetStatus = isCurrentlyCompleted
+      ? (ev.date_precision === 'EXACT' ? 'CONFIRMED' : 'WAITING_CONFIRMATION')
+      : 'COMPLETED';
+
+    // Optimistic UI update
+    setEvents((prev) =>
+      prev.map((item) => (item.id === ev.id ? { ...item, status: targetStatus } : item))
+    );
+
+    try {
+      const res: any = await api.patch(endpoint);
+      if (res.success) {
+        if (!isCurrentlyCompleted) {
+          fireMicroConfetti();
+          success(`"${ev.name}" berhasil ditandai Selesai.`);
+        } else {
+          success(`Status "${ev.name}" berhasil dikembalikan.`);
+        }
+      }
+    } catch (err: any) {
+      setEvents((prev) =>
+        prev.map((item) => (item.id === ev.id ? { ...item, status: ev.status } : item))
+      );
+      toastError(err.message || 'Gagal mengubah status kegiatan.', 'Gagal');
+    } finally {
+      setCompletingId(null);
+    }
+  };
 
   // Navigation handlers
   const handlePrevWeek = () => {
@@ -228,6 +280,9 @@ export const WeeklySchedulePage: React.FC = () => {
   // Filter helper for events
   const filterEvent = useCallback(
     (ev: EventItem) => {
+      if (isMyDutiesOnly && !ev.officers?.some((o) => o.user_id === user?.id)) {
+        return false;
+      }
       if (selectedCategoryFilter !== 'all' && ev.category_id !== selectedCategoryFilter) {
         return false;
       }
@@ -236,11 +291,16 @@ export const WeeklySchedulePage: React.FC = () => {
         const matchName = ev.name.toLowerCase().includes(q);
         const matchLoc = (ev.location_name || ev.location?.name || '').toLowerCase().includes(q);
         const matchDesc = (ev.description || '').toLowerCase().includes(q);
-        return matchName || matchLoc || matchDesc;
+        const matchOfficer = ev.officers?.some(
+          (o) =>
+            (o.user?.name || '').toLowerCase().includes(q) ||
+            (o.role || '').toLowerCase().includes(q)
+        );
+        return matchName || matchLoc || matchDesc || matchOfficer;
       }
       return true;
     },
-    [selectedCategoryFilter, searchQuery]
+    [isMyDutiesOnly, user?.id, selectedCategoryFilter, searchQuery]
   );
 
   // Filtered events by day
@@ -275,9 +335,14 @@ export const WeeklySchedulePage: React.FC = () => {
     const currentHours =
       String(today.getHours()).padStart(2, '0') + ':' + String(today.getMinutes()).padStart(2, '0');
 
-    if (todayEvents.length > 0) {
+    // Filter active (uncompleted & uncancelled) events for today's live tracker
+    const activeTodayEvents = todayEvents.filter(
+      (e) => e.status !== 'CANCELLED' && e.status !== 'COMPLETED'
+    );
+
+    if (activeTodayEvents.length > 0) {
       // 1. Ongoing right now?
-      const ongoing = todayEvents.find(
+      const ongoing = activeTodayEvents.find(
         (e) =>
           !e.is_all_day &&
           e.start_time &&
@@ -290,20 +355,24 @@ export const WeeklySchedulePage: React.FC = () => {
       }
 
       // 2. Next upcoming event today?
-      const nextUpcoming = todayEvents.find(
+      const nextUpcoming = activeTodayEvents.find(
         (e) => !e.is_all_day && e.start_time && e.start_time > currentHours
       );
       if (nextUpcoming) {
         return { heroEvent: nextUpcoming, heroEventBadge: 'Agenda Berikutnya', heroCountdownLabel: 'Hari Ini' };
       }
 
-      // 3. Fallback to first event today
-      return { heroEvent: todayEvents[0], heroEventBadge: 'Agenda Hari Ini', heroCountdownLabel: 'Hari Ini' };
+      // 3. Fallback to first active event today
+      return { heroEvent: activeTodayEvents[0], heroEventBadge: 'Agenda Hari Ini', heroCountdownLabel: 'Hari Ini' };
     }
 
-    // If no events today, find nearest upcoming event this week
+    // If no active events today, find nearest upcoming event this week
     const upcomingThisWeek = events.find(
-      (e) => e.event_date && e.event_date.split('T')[0] >= todayStr
+      (e) =>
+        e.status !== 'CANCELLED' &&
+        e.status !== 'COMPLETED' &&
+        e.event_date &&
+        e.event_date.split('T')[0] >= todayStr
     );
     if (upcomingThisWeek) {
       return {
@@ -527,238 +596,111 @@ export const WeeklySchedulePage: React.FC = () => {
           </div>
         </div>
 
-        {/* BENTO ROW 2: Executive Focus & Operational Telemetry Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
-          {/* HERO CARD (Col Span 7): Agenda Prioritas Hari Ini (One-shot entrance, 0% idle GPU) */}
-          <div className="lg:col-span-7 bg-gradient-to-br from-[#172554] via-[#1D4ED8] to-[#2563EB] text-white rounded-clay p-5 sm:p-6 lg:p-7 shadow-clay-card border border-blue-400/30 relative overflow-hidden flex flex-col justify-between animate-card-reveal">
-            {/* Static Soft Background Accents */}
-            <div className="absolute -top-12 -right-12 w-48 h-48 bg-sky-300/20 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -bottom-12 -left-10 w-44 h-44 bg-indigo-300/20 rounded-full blur-2xl pointer-events-none" />
-
-            {heroEvent ? (
-              <div className="relative z-10 space-y-4">
-                {/* Top Badge & Header */}
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="flex items-center gap-2 bg-emerald-500/20 text-emerald-200 border border-emerald-400/35 text-xs font-bold px-2.5 py-1 rounded-full shadow-xs">
-                      <span className="inline-flex rounded-full h-2 w-2 bg-emerald-400" />
-                      {heroEventBadge}
-                    </span>
-                    {heroCountdownLabel && (
-                      <span className="text-[11px] font-extrabold bg-white/15 text-white border border-white/25 px-2.5 py-0.5 rounded-full backdrop-blur-xs">
-                        {heroCountdownLabel}
-                      </span>
-                    )}
-                    <span className="text-xs text-blue-200 font-medium">
-                      {heroEvent.event_date ? heroEvent.event_date.split('T')[0] : ''}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      style={{
-                        backgroundColor: `${heroEvent.category?.color || '#3B82F6'}30`,
-                        color: heroEvent.category?.color || '#93C5FD',
-                        borderColor: `${heroEvent.category?.color || '#3B82F6'}50`,
-                      }}
-                      className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border"
-                    >
-                      {heroEvent.category?.name || 'Kegiatan'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Event Name */}
-                <div className="space-y-2">
-                  <h3 className="text-lg sm:text-2xl font-black text-white tracking-tight leading-snug">
-                    {heroEvent.name}
-                  </h3>
-                  {heroEvent.description && (
-                    <p className="text-xs sm:text-sm text-slate-200 line-clamp-2 leading-relaxed">
-                      {heroEvent.description}
-                    </p>
-                  )}
-                </div>
-
-                {/* Time & Location Pills */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                  <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold bg-white/10 backdrop-blur-xs px-3 py-2 rounded-xl border border-white/10">
-                    <Clock className="w-4 h-4 text-blue-300 flex-shrink-0" />
-                    <span className="truncate">
-                      {heroEvent.is_all_day
-                        ? 'Sepanjang Hari'
-                        : heroEvent.start_time && heroEvent.end_time
-                        ? `${heroEvent.start_time} – ${heroEvent.end_time} WIB`
-                        : 'Waktu belum diisi'}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold bg-white/10 backdrop-blur-xs px-3 py-2 rounded-xl border border-white/10">
-                    <MapPin className="w-4 h-4 text-rose-300 flex-shrink-0" />
-                    <span className="truncate">
-                      {heroEvent.location_name || heroEvent.location?.name || 'Lokasi Belum Ditentukan'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="pt-3 flex flex-wrap items-center justify-between gap-3 border-t border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/events/${heroEvent.id}`)}
-                    className="inline-flex items-center gap-2 bg-white text-utd-navy-900 hover:bg-blue-50 active:scale-95 text-xs sm:text-sm font-black px-4 py-2 rounded-xl shadow-md transition-all cursor-pointer"
-                  >
-                    <span>Buka Detail Agenda</span>
-                    <ArrowRight className="w-4 h-4 text-blue-600" />
-                  </button>
-
-                  {heroEvent.contact_info && (
-                    <span className="text-xs text-blue-200 truncate max-w-xs">
-                      PIC: {heroEvent.contact_info}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="relative z-10 py-6 sm:py-8 flex flex-col items-center justify-center text-center space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center text-blue-300 shadow-inner">
-                  <Sparkles className="w-6 h-6" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-base sm:text-lg font-bold text-white">
-                    Tidak Ada Agenda Mendesak Hari Ini
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-300 max-w-md">
-                    Semua jadwal perkuliahan, rapat, dan kegiatan akademik terpantau aman dan terkendali.
-                  </p>
-                </div>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => navigate('/events/new')}
-                  leftIcon={<Plus className="w-4 h-4 text-white" />}
-                >
-                  Jadwalkan Acara Baru
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* TELEMETRY BENTO TILES (Col Span 5): Konflik, Tentatif, & Keterisian Ruangan */}
-          <div className="lg:col-span-5 flex flex-col justify-between gap-3 sm:gap-3.5">
-            {/* Tile 1: Status Konflik & Keamanan Jadwal */}
-            {definiteConflictCount > 0 ? (
-              <div className="p-4 rounded-clay bg-rose-50 border border-rose-300 text-rose-950 shadow-clay-sm interactive-card flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center flex-shrink-0 text-rose-600">
-                    <AlertCircle className="w-5 h-5 animate-pulse" />
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-xs sm:text-sm font-black text-rose-900 leading-tight">
-                      <AnimatedCounter value={definiteConflictCount} /> Potensi Bentrok Jadwal
-                    </h4>
-                    <p className="text-[11px] text-rose-700 truncate mt-0.5">
-                      Ada jadwal bersamaan di lokasi yang sama
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => navigate('/events')}
-                  className="text-xs font-black text-rose-700 bg-rose-200/80 hover:bg-rose-300/80 active:scale-95 px-3 py-1.5 rounded-xl transition-all flex-shrink-0 cursor-pointer"
-                >
-                  Cek &rarr;
-                </button>
-              </div>
-            ) : (
-              <div className="p-4 rounded-clay bg-emerald-50/90 border border-emerald-200/80 text-emerald-950 shadow-clay-sm interactive-card flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center flex-shrink-0 text-emerald-600">
-                    <ShieldCheck className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-xs sm:text-sm font-black text-emerald-900 leading-tight">
-                      Jadwal Aman Terkendali
-                    </h4>
-                    <p className="text-[11px] text-emerald-700 truncate mt-0.5">
-                      Tidak ada bentrok ruangan atau jam minggu ini
-                    </p>
-                  </div>
-                </div>
-                <span className="text-[11px] font-extrabold bg-emerald-200/80 text-emerald-800 px-2.5 py-1 rounded-full flex-shrink-0">
-                  0 Konflik
+        {/* EXECUTIVE FOCUS STRIP: Ringkasan Hari Ini, Telemetri, & Switcher Layout */}
+        <div className="bg-white p-3.5 sm:p-4 rounded-clay border border-slate-200/90 shadow-clay-card flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          {/* Left: Agenda Hari Ini Info */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 flex-shrink-0 shadow-xs">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs sm:text-sm font-black text-slate-900">
+                  Agenda Hari Ini ({daysOfWeek.find((d) => d.isToday)?.dayName || 'Hari Ini'})
+                </span>
+                <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                  {(eventsByDay[formatDateYMD(new Date())] || []).length} Kegiatan
                 </span>
               </div>
-            )}
+              <p className="text-xs text-slate-500 truncate mt-0.5">
+                {heroEvent
+                  ? `Kegiatan berikutnya: ${heroEvent.name} (${
+                      heroEvent.is_all_day
+                        ? 'Sepanjang Hari'
+                        : `${heroEvent.start_time} WIB`
+                    }) • ${heroEvent.location_name || heroEvent.location?.name || 'Lokasi Kampus'}`
+                  : 'Tidak ada agenda kegiatan mendesak hari ini. Semua terpantau aman.'}
+              </p>
+            </div>
+          </div>
 
-            {/* Tile 2: Status Tentatif & Konfirmasi */}
-            {tentativeCount > 0 ? (
-              <div className="p-4 rounded-clay bg-amber-50/90 border border-amber-200/80 text-amber-950 shadow-clay-sm interactive-card flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center flex-shrink-0 text-amber-600">
-                    <AlertTriangle className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-xs sm:text-sm font-black text-amber-900 leading-tight">
-                      <AnimatedCounter value={tentativeCount} /> Kegiatan Tentatif
-                    </h4>
-                    <p className="text-[11px] text-amber-700 truncate mt-0.5">
-                      Menunggu konfirmasi tanggal/ruangan pasti
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => navigate('/tentative')}
-                  className="text-xs font-black text-amber-800 bg-amber-200/80 hover:bg-amber-300/80 active:scale-95 px-3 py-1.5 rounded-xl transition-all flex-shrink-0 cursor-pointer"
-                >
-                  Tinjau &rarr;
-                </button>
-              </div>
+          {/* Right: Quick Status Pills & Layout Switcher */}
+          <div className="flex flex-wrap items-center gap-2 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 flex-shrink-0">
+            {/* Status Pills */}
+            {definiteConflictCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => navigate('/events')}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <AlertCircle className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
+                <span>{definiteConflictCount} Bentrok</span>
+              </button>
             ) : (
-              <div className="p-4 rounded-clay bg-white border border-slate-200/80 text-slate-800 shadow-clay-sm interactive-card flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0 text-slate-600">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-tight">
-                      Semua Terjadwal Pasti
-                    </h4>
-                    <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                      Tidak ada kegiatan tertunda konfirmasi
-                    </p>
-                  </div>
-                </div>
-                <span className="text-[11px] font-bold text-slate-500">Rapi</span>
-              </div>
+              <span className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>0 Bentrok</span>
+              </span>
             )}
 
-            {/* Tile 3: Ringkasan Aktivitas & Ruangan Terpakai */}
-            <div className="p-4 rounded-clay bg-white border border-slate-200/80 shadow-clay-sm interactive-card flex items-center justify-between gap-2">
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  <Building2 className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Keterisian Kampus</span>
-                </div>
-                <div className="text-lg sm:text-xl font-black text-utd-navy-900">
-                  <AnimatedCounter value={uniqueRoomsCount} />{' '}
-                  <span className="text-xs font-semibold text-slate-500">Lokasi Aktif</span>
-                </div>
-              </div>
+            {tentativeCount > 0 && (
+              <button
+                type="button"
+                onClick={() => navigate('/tentative')}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                <span>{tentativeCount} Tentatif</span>
+              </button>
+            )}
 
-              <div className="h-8 w-[1px] bg-slate-200" />
+            {/* WA Summary Share Button */}
+            <button
+              type="button"
+              onClick={() => setIsWhatsAppSummaryOpen(true)}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Bagikan ringkasan kegiatan ke WhatsApp grup"
+            >
+              <MessageSquareShare className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Rangkuman WA</span>
+            </button>
 
-              <div className="space-y-1 text-right">
-                <div className="flex items-center justify-end gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  <Layers className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Total Agenda</span>
-                </div>
-                <div className="text-lg sm:text-xl font-black text-blue-700">
-                  <AnimatedCounter value={events.length} />{' '}
-                  <span className="text-xs font-semibold text-slate-500">Kegiatan</span>
-                </div>
-              </div>
+            {/* Layout Toggle: Grid vs Compact List */}
+            <div className="flex items-center p-0.5 bg-slate-100 rounded-lg border border-slate-200">
+              <button
+                type="button"
+                onClick={() => {
+                  setLayoutMode('grid');
+                  try {
+                    localStorage.setItem('weekly_layout_mode', 'grid');
+                  } catch {}
+                }}
+                className={`p-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                  layoutMode === 'grid'
+                    ? 'bg-white text-blue-700 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="Tampilan Kolom Grid 7 Hari"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLayoutMode('compact');
+                  try {
+                    localStorage.setItem('weekly_layout_mode', 'compact');
+                  } catch {}
+                }}
+                className={`p-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                  layoutMode === 'compact'
+                    ? 'bg-white text-blue-700 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="Tampilan Mode Ringkas (List Garis Bersih)"
+              >
+                <List className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
@@ -792,6 +734,19 @@ export const WeeklySchedulePage: React.FC = () => {
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mr-1 flex-shrink-0">
                 <Filter className="w-3 h-3" /> Filter:
               </span>
+              <button
+                type="button"
+                onClick={() => setIsMyDutiesOnly(!isMyDutiesOnly)}
+                className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  isMyDutiesOnly
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100'
+                }`}
+                title="Tampilkan hanya agenda yang menugaskan Anda"
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Tugas Saya {isMyDutiesOnly && '✓'}</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setSelectedCategoryFilter('all')}
@@ -835,10 +790,121 @@ export const WeeklySchedulePage: React.FC = () => {
             ))}
           </div>
         ) : selectedDayFilter === 'all' ? (
-          /* =========================================================================
-             A. DESKTOP 7-COLUMN BENTO GRID VIEW
-             ========================================================================= */
-          <div className="hidden md:grid md:grid-cols-7 gap-3.5 items-start">
+          layoutMode === 'compact' ? (
+            /* =========================================================================
+               A. COMPACT AGENDA LIST VIEW (Super clean, high-density, no clutter)
+               ========================================================================= */
+            <div className="bg-white rounded-clay border border-slate-200/90 shadow-clay-card divide-y divide-slate-100 overflow-hidden">
+              {daysOfWeek.map((day) => {
+                const dayEvs = filteredEventsByDay[day.dateStr] || [];
+
+                return (
+                  <div key={day.dateStr} className="p-3 sm:p-4">
+                    <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-100">
+                      <span
+                        className={`text-xs font-black uppercase tracking-wider ${
+                          day.isToday ? 'text-blue-600' : 'text-slate-800'
+                        }`}
+                      >
+                        {day.dayName}, {day.dayNumber} {day.monthShort}
+                      </span>
+                      {day.isToday && (
+                        <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">
+                          Hari Ini
+                        </span>
+                      )}
+                      <span className="text-xs text-slate-400">
+                        ({dayEvs.length} Kegiatan)
+                      </span>
+                    </div>
+
+                    {dayEvs.length === 0 ? (
+                      <div className="text-xs text-slate-400 italic py-1 pl-2">
+                        Tidak ada agenda kegiatan
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {dayEvs.map((ev) => (
+                          <div
+                            key={ev.id}
+                            onClick={() => navigate(`/events/${ev.id}`)}
+                            className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2.5 rounded-xl hover:bg-blue-50/40 transition-colors cursor-pointer border border-slate-100 hover:border-blue-200 gap-2 group"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              {/* Category Dot */}
+                              <span
+                                style={{ backgroundColor: ev.category?.color || '#3B82F6' }}
+                                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                title={ev.category?.name}
+                              />
+
+                              {/* Time */}
+                              <span className="text-xs font-bold text-slate-700 w-28 flex-shrink-0 font-mono">
+                                {ev.is_all_day
+                                  ? 'Sepanjang Hari'
+                                  : ev.start_time && ev.end_time
+                                  ? `${ev.start_time} – ${ev.end_time}`
+                                  : 'Jam fleksibel'}
+                              </span>
+
+                              {/* Title */}
+                              <span className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-700 transition-colors truncate">
+                                {ev.name}
+                              </span>
+
+                              {/* Location */}
+                              {(ev.location_name || ev.location?.name) && (
+                                <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-slate-500 truncate max-w-xs">
+                                  <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                  {ev.location_name || ev.location?.name}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-between sm:justify-end">
+                              {/* Officers Badge */}
+                              {ev.officers && ev.officers.length > 0 && (
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-100 flex items-center gap-1">
+                                  <Users className="w-2.5 h-2.5 text-purple-600" />
+                                  {ev.officers.some((o) => o.user_id === user?.id)
+                                    ? `Tugas Anda (${ev.officers.find((o) => o.user_id === user?.id)?.role})`
+                                    : `${ev.officers.length} Petugas`}
+                                </span>
+                              )}
+
+                              {/* Status Badge */}
+                              <StatusBadge status={ev.status} size="sm" />
+
+                              {/* Complete Button */}
+                              {ev.status !== 'CANCELLED' && (
+                                <button
+                                  type="button"
+                                  disabled={completingId === ev.id}
+                                  onClick={(e) => handleToggleComplete(e, ev)}
+                                  title={ev.status === 'COMPLETED' ? 'Selesai' : 'Tandai Selesai'}
+                                  className="p-1 rounded text-slate-400 hover:text-emerald-600 cursor-pointer"
+                                >
+                                  {ev.status === 'COMPLETED' ? (
+                                    <CheckCircle className="w-4 h-4 text-emerald-600" />
+                                  ) : (
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* =========================================================================
+               B. DESKTOP 7-COLUMN BENTO GRID VIEW
+               ========================================================================= */
+            <div className="hidden md:grid md:grid-cols-7 gap-3.5 items-start">
             {daysOfWeek.map((day) => {
               const dayEvents = filteredEventsByDay[day.dateStr] || [];
 
@@ -920,14 +986,51 @@ export const WeeklySchedulePage: React.FC = () => {
                             </div>
                           )}
 
+                          {/* Officers Badge */}
+                          {event.officers && event.officers.length > 0 && (
+                            <div className="flex items-center gap-1 text-[10px] text-purple-700 bg-purple-50/80 px-1.5 py-0.5 rounded border border-purple-100 truncate">
+                              <Users className="w-2.5 h-2.5 text-purple-600 flex-shrink-0" />
+                              <span className="truncate">
+                                {event.officers.some((o) => o.user_id === user?.id)
+                                  ? `Tugas Anda (${event.officers.find((o) => o.user_id === user?.id)?.role})`
+                                  : `${event.officers.length} Petugas`}
+                              </span>
+                            </div>
+                          )}
+
                           {/* Badges */}
-                          <div className="flex flex-wrap items-center gap-1 pt-1 border-t border-slate-100/80">
-                            <CategoryBadge
-                              name={event.category.name}
-                              color={event.category.color}
-                              size="sm"
-                            />
-                            <StatusBadge status={event.status} size="sm" />
+                          <div className="flex items-center justify-between gap-1 pt-1 border-t border-slate-100/80">
+                            <div className="flex flex-wrap items-center gap-1">
+                              <CategoryBadge
+                                name={event.category.name}
+                                color={event.category.color}
+                                size="sm"
+                              />
+                              <StatusBadge status={event.status} size="sm" />
+                            </div>
+                            {event.status !== 'CANCELLED' && (
+                              <button
+                                type="button"
+                                disabled={completingId === event.id}
+                                onClick={(e) => handleToggleComplete(e, event)}
+                                title={
+                                  event.status === 'COMPLETED'
+                                    ? 'Selesai (Klik untuk kembalikan status)'
+                                    : 'Tandai Kegiatan Selesai'
+                                }
+                                className={`p-1 rounded-md transition-colors cursor-pointer flex-shrink-0 disabled:opacity-50 ${
+                                  event.status === 'COMPLETED'
+                                    ? 'text-emerald-600 hover:text-slate-600 hover:bg-slate-100'
+                                    : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
+                                }`}
+                              >
+                                {event.status === 'COMPLETED' ? (
+                                  <CheckCircle className="w-3.5 h-3.5 fill-emerald-100" />
+                                ) : (
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))
@@ -937,7 +1040,7 @@ export const WeeklySchedulePage: React.FC = () => {
               );
             })}
           </div>
-        ) : (
+        )) : (
           /* =========================================================================
              B. FOCUSED SINGLE DAY BENTO VIEW (When user clicks a specific day)
              ========================================================================= */
@@ -1055,15 +1158,59 @@ export const WeeklySchedulePage: React.FC = () => {
                               </div>
                             )}
 
+                            {/* Officers Badge */}
+                            {event.officers && event.officers.length > 0 && (
+                              <div className="flex items-center gap-1.5 text-xs text-purple-700 bg-purple-50/80 px-2 py-1 rounded-md border border-purple-100 truncate">
+                                <Users className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" />
+                                <span className="truncate">
+                                  {event.officers.some((o) => o.user_id === user?.id) ? (
+                                    <strong className="font-bold">
+                                      Tugas Anda: {event.officers.find((o) => o.user_id === user?.id)?.role}
+                                    </strong>
+                                  ) : (
+                                    <span>
+                                      Petugas: {event.officers.map((o) => `${o.user?.name || 'Staf'} (${o.role})`).join(', ')}
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            )}
+
                             <div className="flex items-center justify-between pt-1">
                               <CategoryBadge
                                 name={event.category.name}
                                 color={event.category.color}
                                 size="sm"
                               />
-                              <span className="text-xs font-bold text-blue-600 group-hover:translate-x-0.5 transition-transform">
-                                Detail &rarr;
-                              </span>
+                              <div className="flex items-center gap-2">
+                                {event.status !== 'CANCELLED' && (
+                                  <button
+                                    type="button"
+                                    disabled={completingId === event.id}
+                                    onClick={(e) => handleToggleComplete(e, event)}
+                                    title={
+                                      event.status === 'COMPLETED'
+                                        ? 'Selesai (Klik untuk kembalikan status)'
+                                        : 'Tandai Kegiatan Selesai'
+                                    }
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer disabled:opacity-50 ${
+                                      event.status === 'COMPLETED'
+                                        ? 'bg-slate-200/80 text-slate-700 hover:bg-slate-300'
+                                        : 'bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700'
+                                    }`}
+                                  >
+                                    {event.status === 'COMPLETED' ? (
+                                      <CheckCircle className="w-3 h-3 text-emerald-600" />
+                                    ) : (
+                                      <CheckCircle2 className="w-3 h-3" />
+                                    )}
+                                    <span>{event.status === 'COMPLETED' ? 'Selesai' : 'Tandai Selesai'}</span>
+                                  </button>
+                                )}
+                                <span className="text-xs font-bold text-blue-600 group-hover:translate-x-0.5 transition-transform">
+                                  Detail &rarr;
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1077,9 +1224,9 @@ export const WeeklySchedulePage: React.FC = () => {
         )}
 
         {/* =========================================================================
-           C. MOBILE VIEW (Visible on small screens: md:hidden when selectedDayFilter is 'all')
+           C. MOBILE VIEW (Visible on small screens: md:hidden when selectedDayFilter is 'all' and not in compact mode)
            ========================================================================= */}
-        {selectedDayFilter === 'all' && (
+        {selectedDayFilter === 'all' && layoutMode !== 'compact' && (
           <div className="md:hidden space-y-3">
             {daysOfWeek.map((day) => {
               const dayEvents = filteredEventsByDay[day.dateStr] || [];
@@ -1196,9 +1343,30 @@ export const WeeklySchedulePage: React.FC = () => {
                               color={event.category.color}
                               size="sm"
                             />
-                            <span className="text-[11px] font-semibold text-blue-600">
-                              Lihat Detail &rarr;
-                            </span>
+                            <div className="flex items-center gap-2">
+                              {event.status !== 'CANCELLED' && (
+                                <button
+                                  type="button"
+                                  disabled={completingId === event.id}
+                                  onClick={(e) => handleToggleComplete(e, event)}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer disabled:opacity-50 ${
+                                    event.status === 'COMPLETED'
+                                      ? 'bg-slate-100 text-slate-700'
+                                      : 'bg-emerald-50 text-emerald-700'
+                                  }`}
+                                >
+                                  {event.status === 'COMPLETED' ? (
+                                    <CheckCircle className="w-3 h-3 text-emerald-600" />
+                                  ) : (
+                                    <CheckCircle2 className="w-3 h-3" />
+                                  )}
+                                  <span>{event.status === 'COMPLETED' ? 'Selesai' : 'Tandai Selesai'}</span>
+                                </button>
+                              )}
+                              <span className="text-[11px] font-semibold text-blue-600">
+                                Lihat Detail &rarr;
+                              </span>
+                            </div>
                           </div>
                         </div>
                       ))

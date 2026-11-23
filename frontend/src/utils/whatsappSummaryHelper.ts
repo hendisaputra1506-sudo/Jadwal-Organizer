@@ -125,6 +125,13 @@ export function generateWhatsAppWeeklySummary(
           message += `   🏷️ ${ev.category.name}\n`;
         }
 
+        if (ev.officers && ev.officers.length > 0) {
+          const officerListStr = ev.officers
+            .map((o) => `@${o.user?.name || 'Staf'} (${o.role})`)
+            .join(', ');
+          message += `   👥 Petugas: ${officerListStr}\n`;
+        }
+
         message += `\n`;
       });
     }

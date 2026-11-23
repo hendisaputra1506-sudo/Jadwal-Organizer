@@ -8,6 +8,10 @@ import {
   MapPin,
   HelpCircle,
   Plus,
+  CheckCircle2,
+  CheckCircle,
+  Users,
+  UserCheck,
 } from 'lucide-react';
 import { Header } from '../../components/layout/Header';
 import { Button } from '../../components/common/Button';
@@ -16,6 +20,8 @@ import { CategoryBadge, StatusBadge } from '../../components/common/Badge';
 import { api } from '../../services/api';
 import { EventItem } from '../../types/index';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import { fireMicroConfetti } from '../../utils/confetti';
 
 interface OutletContextType {
   onToggleSidebar: () => void;
@@ -23,7 +29,8 @@ interface OutletContextType {
 
 export const CalendarPage: React.FC = () => {
   const { onToggleSidebar } = useOutletContext<OutletContextType>();
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const { success, error: toastError } = useToast();
   const navigate = useNavigate();
 
   const getLocalDateStr = (d: Date = new Date()): string => {
@@ -41,7 +48,9 @@ export const CalendarPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<string>('month'); // 'month' | 'week'
   const [exactEvents, setExactEvents] = useState<EventItem[]>([]);
   const [tentativeEvents, setTentativeEvents] = useState<EventItem[]>([]);
+  const [isMyDutiesOnly, setIsMyDutiesOnly] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [completingId, setCompletingId] = useState<string | null>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1; // 1-12
@@ -78,6 +87,45 @@ export const CalendarPage: React.FC = () => {
   useEffect(() => {
     fetchCalendarData();
   }, [fetchCalendarData]);
+
+  const handleToggleComplete = async (e: React.MouseEvent, ev: EventItem) => {
+    e.stopPropagation();
+    setCompletingId(ev.id);
+    const isCurrentlyCompleted = ev.status === 'COMPLETED';
+    const endpoint = isCurrentlyCompleted ? `/events/${ev.id}/uncomplete` : `/events/${ev.id}/complete`;
+    const targetStatus = isCurrentlyCompleted
+      ? (ev.date_precision === 'EXACT' ? 'CONFIRMED' : 'WAITING_CONFIRMATION')
+      : 'COMPLETED';
+
+    setExactEvents((prev) =>
+      prev.map((item) => (item.id === ev.id ? { ...item, status: targetStatus } : item))
+    );
+    setTentativeEvents((prev) =>
+      prev.map((item) => (item.id === ev.id ? { ...item, status: targetStatus } : item))
+    );
+
+    try {
+      const res: any = await api.patch(endpoint);
+      if (res.success) {
+        if (!isCurrentlyCompleted) {
+          fireMicroConfetti();
+          success(`"${ev.name}" berhasil ditandai Selesai.`);
+        } else {
+          success(`Status "${ev.name}" berhasil dikembalikan.`);
+        }
+      }
+    } catch (err: any) {
+      setExactEvents((prev) =>
+        prev.map((item) => (item.id === ev.id ? { ...item, status: ev.status } : item))
+      );
+      setTentativeEvents((prev) =>
+        prev.map((item) => (item.id === ev.id ? { ...item, status: ev.status } : item))
+      );
+      toastError(err.message || 'Gagal mengubah status kegiatan.', 'Gagal');
+    } finally {
+      setCompletingId(null);
+    }
+  };
 
   // Calendar Grid Calculation for Month View
   const firstDayOfMonth = new Date(year, month - 1, 1);
@@ -117,8 +165,12 @@ export const CalendarPage: React.FC = () => {
   }
 
   // Map events to date strings
+  const filteredExactEvents = isMyDutiesOnly
+    ? exactEvents.filter((ev) => ev.officers?.some((o) => o.user_id === user?.id))
+    : exactEvents;
+
   const eventsByDate: Record<string, EventItem[]> = {};
-  exactEvents.forEach((ev) => {
+  filteredExactEvents.forEach((ev) => {
     if (ev.event_date) {
       const dStr = ev.event_date.split('T')[0];
       if (!eventsByDate[dStr]) eventsByDate[dStr] = [];
@@ -195,7 +247,21 @@ export const CalendarPage: React.FC = () => {
             {monthNames[month - 1]} {year}
           </h3>
 
-          <div className="w-full sm:w-auto flex justify-center sm:justify-end">
+          <div className="w-full sm:w-auto flex items-center justify-center sm:justify-end gap-2">
+            <Button
+              variant={isMyDutiesOnly ? 'primary' : 'outline'}
+              size="sm"
+              onClick={() => setIsMyDutiesOnly((prev) => !prev)}
+              leftIcon={<UserCheck className="w-3.5 h-3.5" />}
+              className={`flex-1 sm:flex-none ${
+                isMyDutiesOnly
+                  ? 'bg-purple-600 hover:bg-purple-700 text-white border-purple-600'
+                  : 'text-purple-700 border-purple-200 bg-purple-50/50 hover:bg-purple-100'
+              }`}
+              title="Tampilkan hanya kegiatan di mana Anda ditugaskan"
+            >
+              {isMyDutiesOnly ? 'Tugas Saya Saja ✓' : 'Tugas Saya'}
+            </Button>
             <Tabs
               tabs={[
                 { id: 'month', label: 'Bulan' },
@@ -422,15 +488,52 @@ export const CalendarPage: React.FC = () => {
                             </div>
                           )}
 
+                          {ev.officers && ev.officers.length > 0 && (
+                            <div className="flex items-center gap-1 text-[10px] text-purple-700 bg-purple-50/80 px-2 py-0.5 rounded border border-purple-100">
+                              <Users className="w-3 h-3 text-purple-600 flex-shrink-0" />
+                              <span className="truncate">
+                                {ev.officers.some((o) => o.user_id === user?.id)
+                                  ? `Tugas Anda (${ev.officers.find((o) => o.user_id === user?.id)?.role})`
+                                  : `${ev.officers.length} Petugas: ${ev.officers.map((o) => o.user?.name).join(', ')}`}
+                              </span>
+                            </div>
+                          )}
+
                           <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between">
                             <CategoryBadge
                               name={ev.category.name}
                               color={ev.category.color}
                               size="sm"
                             />
-                            <span className="text-[11px] font-semibold text-blue-600">
-                              Lihat Detail &rarr;
-                            </span>
+                            <div className="flex items-center gap-2">
+                              {ev.status !== 'CANCELLED' && (
+                                <button
+                                  type="button"
+                                  disabled={completingId === ev.id}
+                                  onClick={(e) => handleToggleComplete(e, ev)}
+                                  title={
+                                    ev.status === 'COMPLETED'
+                                      ? 'Selesai (Klik untuk kembalikan status)'
+                                      : 'Tandai Kegiatan Selesai'
+                                  }
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer disabled:opacity-50 ${
+                                    ev.status === 'COMPLETED'
+                                      ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                      : 'bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700'
+                                  }`}
+                                >
+                                  {ev.status === 'COMPLETED' ? (
+                                    <CheckCircle className="w-3 h-3 text-emerald-600" />
+                                  ) : (
+                                    <CheckCircle2 className="w-3 h-3" />
+                                  )}
+                                  <span>{ev.status === 'COMPLETED' ? 'Selesai' : 'Tandai Selesai'}</span>
+                                </button>
+                              )}
+                              <span className="text-[11px] font-semibold text-blue-600">
+                                Lihat Detail &rarr;
+                              </span>
+                            </div>
                           </div>
                         </div>
                       ))}

@@ -8,6 +8,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { LoginPage } from './pages/Login/LoginPage';
 import { WeeklySchedulePage } from './pages/WeeklySchedule/WeeklySchedulePage';
 import { CalendarPage } from './pages/Calendar/CalendarPage';
+import { MyDutiesPage } from './pages/MyDuties/MyDutiesPage';
 import { AllEventsPage } from './pages/AllEvents/AllEventsPage';
 import { EventDetailPage } from './pages/EventDetail/EventDetailPage';
 import { EventFormPage } from './pages/EventForm/EventFormPage';
@@ -88,6 +89,9 @@ export const App: React.FC = () => {
 
               {/* Calendar Views */}
               <Route path="calendar" element={<CalendarPage />} />
+
+              {/* My Assigned Duties Schedule */}
+              <Route path="my-duties" element={<MyDutiesPage />} />
 
               {/* Events Views (Accessible by both Admin & Staff) */}
               <Route path="events" element={<AllEventsPage />} />

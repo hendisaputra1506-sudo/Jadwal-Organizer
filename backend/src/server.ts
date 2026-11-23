@@ -14,6 +14,7 @@ import attachmentRoutes from './routes/attachmentRoutes.js';
 import letterRoutes from './routes/letterRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 
 const app = express();
 
@@ -142,6 +143,7 @@ app.use('/api/attachments', attachmentRoutes);
 app.use('/api/letters', letterRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/backup', backupRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // 9. Centralized Error Handling Middleware
 app.use(errorHandler);

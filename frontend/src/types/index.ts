@@ -124,8 +124,47 @@ export interface EventItem {
   updated_at: string;
   candidate_dates?: EventCandidateDate[];
   attachments?: EventAttachment[];
+  officers?: EventOfficer[];
   conflictReport?: ConflictCheckResult | null;
   isOverdue?: boolean;
+}
+
+export interface EventOfficer {
+  id?: string;
+  event_id?: string;
+  user_id: string;
+  user?: {
+    id: string;
+    name: string;
+    username?: string;
+  };
+  role?: string | null;
+  notes?: string | null;
+  created_at?: string;
+}
+
+export type NotificationType =
+  | 'ASSIGNMENT'
+  | 'REMINDER_H1'
+  | 'REMINDER_TODAY'
+  | 'EVENT_UPDATED';
+
+export interface NotificationItem {
+  id: string;
+  user_id: string;
+  event_id?: string | null;
+  event?: {
+    id: string;
+    name: string;
+    event_date?: string | null;
+    start_time?: string | null;
+    status?: EventStatus;
+  } | null;
+  title: string;
+  message: string;
+  type: NotificationType;
+  is_read: boolean;
+  created_at: string;
 }
 
 export interface EventAttachment {
